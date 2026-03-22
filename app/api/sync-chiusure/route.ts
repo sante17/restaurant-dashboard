@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 async function getSheetClient() {
   const auth = new google.auth.JWT({
     email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    key: process.env.GOOGLE_PRIVATE_KEY?.split("\\n").join("\n"),
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
   return google.sheets({ version: "v4", auth });
