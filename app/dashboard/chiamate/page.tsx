@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-interface Call {
+interface CallSummary {
   id: string;
   type: string;
   status: string;
@@ -12,16 +12,21 @@ interface Call {
   cost: string | null;
   customerPhone: string | null;
   endedReason: string | null;
-  transcript: string;
-  messages: any[];
   summary: string | null;
 }
 
+interface CallDetail extends CallSummary {
+  transcript: string;
+  messages: any[];
+}
+
 export default function ChiamatePage() {
-  const [calls, setCalls] = useState<Call[]>([]);
+  const [calls, setCalls] = useState<CallSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedCall, setSelectedCall] = useState<Call | null>(null);
+  const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
+  const [callDetail, setCallDetail] = useState<CallDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [filter, setFilter] = useState<"all" | "today" | "week">("all");
 
   useEffect(() => { loadCalls(); }, []);
@@ -38,6 +43,24 @@ export default function ChiamatePage() {
     setLoading(false);
   }
 
+  async function loadCallDetail(callId: string) {
+    if (selectedCallId === callId) {
+      setSelectedCallId(null);
+      setCallDetail(null);
+      return;
+    }
+    setSelectedCallId(callId);
+    setCallDetail(null);
+    setLoadingDetail(true);
+    try {
+      const res = await fetch("/api/chiamate?callId=" + callId);
+      const data = await res.json();
+      if (data.error) { setError(data.error); setLoadingDetail(false); return; }
+      setCallDetail(data.call);
+    } catch { setError("Errore nel caricamento dettaglio"); }
+    setLoadingDetail(false);
+  }
+
   function formatDateTime(dateStr: string) {
     if (!dateStr) return "---";
     const d = new Date(dateStr);
@@ -47,14 +70,12 @@ export default function ChiamatePage() {
 
   function formatDate(dateStr: string) {
     if (!dateStr) return "---";
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return new Date(dateStr).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
   }
 
   function formatTime(dateStr: string) {
     if (!dateStr) return "";
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    return new Date(dateStr).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
   }
 
   function formatDuration(seconds: number) {
@@ -66,24 +87,21 @@ export default function ChiamatePage() {
   }
 
   function formatPhone(phone: string | null) {
-    if (!phone) return "Sconosciuto";
-    return phone;
+    return phone || "Sconosciuto";
   }
 
-  function getStatusLabel(call: Call) {
-    if (call.endedReason === "customer-ended-call") return "Completata";
-    if (call.endedReason === "assistant-ended-call") return "Completata";
+  function getStatusLabel(call: CallSummary) {
+    if (call.endedReason === "customer-ended-call" || call.endedReason === "assistant-ended-call") return "Completata";
     if (call.endedReason === "customer-did-not-answer") return "Non risposta";
     if (call.endedReason === "voicemail") return "Segreteria";
-    if (call.endedReason === "silence-timed-out") return "Timeout silenzio";
+    if (call.endedReason === "silence-timed-out") return "Timeout";
     if (call.endedReason === "max-duration-reached") return "Durata max";
     if (call.endedReason === "assistant-forwarded-call") return "Trasferita";
-    if (call.status === "ended") return "Terminata";
     if (call.status === "in-progress") return "In corso";
-    return call.status || "---";
+    return "Terminata";
   }
 
-  function getStatusColor(call: Call) {
+  function getStatusColor(call: CallSummary) {
     if (call.endedReason === "assistant-forwarded-call") return "bg-amber-100 text-amber-700";
     if (call.endedReason === "customer-did-not-answer") return "bg-red-100 text-red-700";
     if (call.endedReason === "silence-timed-out") return "bg-gray-100 text-gray-600";
@@ -91,29 +109,23 @@ export default function ChiamatePage() {
     return "bg-green-100 text-green-700";
   }
 
-  function parseTranscriptMessages(call: Call) {
-    // Prova a usare messages se disponibili
-    if (call.messages && call.messages.length > 0) {
-      return call.messages
-        .filter((m: any) => m.role === "assistant" || m.role === "user")
+  function parseTranscriptMessages(detail: CallDetail) {
+    if (detail.messages && detail.messages.length > 0) {
+      return detail.messages
+        .filter((m: any) => m.role === "assistant" || m.role === "user" || m.role === "bot" || m.role === "customer")
         .map((m: any) => ({
-          role: m.role === "assistant" ? "Agente" : "Cliente",
-          text: m.content || m.message || "",
-          isAgent: m.role === "assistant",
+          role: (m.role === "assistant" || m.role === "bot") ? "Agente" : "Cliente",
+          text: m.content || m.message || m.transcript || "",
+          isAgent: m.role === "assistant" || m.role === "bot",
         }))
         .filter((m: any) => m.text.trim());
     }
-    // Fallback: parse il transcript grezzo
-    if (call.transcript) {
-      const lines = call.transcript.split("\n").filter((l: string) => l.trim());
+    if (detail.transcript) {
+      const lines = detail.transcript.split("\n").filter((l: string) => l.trim());
       return lines.map((line: string) => {
         const isAgent = line.toLowerCase().startsWith("ai:") || line.toLowerCase().startsWith("assistant:") || line.toLowerCase().startsWith("bot:");
         const cleanLine = line.replace(/^(AI|Assistant|Bot|User|Human|Customer):\s*/i, "");
-        return {
-          role: isAgent ? "Agente" : "Cliente",
-          text: cleanLine,
-          isAgent,
-        };
+        return { role: isAgent ? "Agente" : "Cliente", text: cleanLine, isAgent };
       });
     }
     return [];
@@ -123,12 +135,9 @@ export default function ChiamatePage() {
     if (filter === "all") return true;
     const callDate = new Date(call.startedAt);
     const now = new Date();
-    if (filter === "today") {
-      return callDate.toDateString() === now.toDateString();
-    }
+    if (filter === "today") return callDate.toDateString() === now.toDateString();
     if (filter === "week") {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
       return callDate >= weekAgo;
     }
     return true;
@@ -145,18 +154,11 @@ export default function ChiamatePage() {
           <h1 className="text-2xl font-bold text-gray-900">Chiamate</h1>
           <p className="text-gray-500 mt-1 text-sm">{filteredCalls.length} chiamate {filter === "today" ? "di oggi" : filter === "week" ? "questa settimana" : "totali"}</p>
         </div>
-        <button onClick={loadCalls} className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
-          Aggiorna
-        </button>
+        <button onClick={loadCalls} className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Aggiorna</button>
       </div>
 
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
 
-      {/* Filtri e stats */}
       <div className="flex flex-wrap gap-2 mb-4">
         {(["all", "today", "week"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
@@ -166,7 +168,6 @@ export default function ChiamatePage() {
         ))}
       </div>
 
-      {/* Stats cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs text-gray-500">Chiamate</p>
@@ -188,66 +189,55 @@ export default function ChiamatePage() {
         </div>
       </div>
 
-      {/* Dettaglio chiamata selezionata */}
-      {selectedCall && (
+      {/* Dettaglio chiamata */}
+      {selectedCallId && (
         <div className="bg-white rounded-xl border border-blue-200 p-4 sm:p-5 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-gray-900">Dettaglio chiamata</h2>
-            <button onClick={() => setSelectedCall(null)} className="text-gray-400 hover:text-gray-600 text-lg">x</button>
+            <button onClick={() => { setSelectedCallId(null); setCallDetail(null); }} className="text-gray-400 hover:text-gray-600 text-lg">x</button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
-            <div>
-              <span className="text-gray-500 text-xs">Data</span>
-              <p className="font-medium text-gray-900">{formatDate(selectedCall.startedAt)}</p>
-            </div>
-            <div>
-              <span className="text-gray-500 text-xs">Orario</span>
-              <p className="font-medium text-gray-900">{formatTime(selectedCall.startedAt)} - {formatTime(selectedCall.endedAt)}</p>
-            </div>
-            <div>
-              <span className="text-gray-500 text-xs">Durata</span>
-              <p className="font-medium text-gray-900">{formatDuration(selectedCall.duration)}</p>
-            </div>
-            <div>
-              <span className="text-gray-500 text-xs">Costo</span>
-              <p className="font-medium text-gray-900">{selectedCall.cost ? "$" + selectedCall.cost : "---"}</p>
-            </div>
-            <div>
-              <span className="text-gray-500 text-xs">Telefono</span>
-              <p className="font-medium text-gray-900">{formatPhone(selectedCall.customerPhone)}</p>
-            </div>
-            <div>
-              <span className="text-gray-500 text-xs">Stato</span>
-              <p className="font-medium text-gray-900">{getStatusLabel(selectedCall)}</p>
-            </div>
-          </div>
+          {loadingDetail ? (
+            <div className="py-8 text-center"><p className="text-sm text-gray-500">Caricamento conversazione completa...</p></div>
+          ) : callDetail ? (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
+                <div><span className="text-gray-500 text-xs">Data</span><p className="font-medium text-gray-900">{formatDate(callDetail.startedAt)}</p></div>
+                <div><span className="text-gray-500 text-xs">Orario</span><p className="font-medium text-gray-900">{formatTime(callDetail.startedAt)} - {formatTime(callDetail.endedAt)}</p></div>
+                <div><span className="text-gray-500 text-xs">Durata</span><p className="font-medium text-gray-900">{formatDuration(callDetail.duration)}</p></div>
+                <div><span className="text-gray-500 text-xs">Costo</span><p className="font-medium text-gray-900">{callDetail.cost ? "$" + callDetail.cost : "---"}</p></div>
+                <div><span className="text-gray-500 text-xs">Telefono</span><p className="font-medium text-gray-900">{formatPhone(callDetail.customerPhone)}</p></div>
+                <div><span className="text-gray-500 text-xs">Stato</span><p className="font-medium text-gray-900">{getStatusLabel(callDetail)}</p></div>
+              </div>
 
-          {selectedCall.summary && (
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-xs text-gray-500 mb-1">Riepilogo AI</p>
-              <p className="text-sm text-gray-700">{selectedCall.summary}</p>
-            </div>
-          )}
-
-          {/* Transcript */}
-          <div>
-            <p className="text-xs text-gray-500 mb-2 font-medium">Conversazione</p>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {parseTranscriptMessages(selectedCall).length > 0 ? (
-                parseTranscriptMessages(selectedCall).map((msg: any, i: number) => (
-                  <div key={i} className={"flex " + (msg.isAgent ? "justify-start" : "justify-end")}>
-                    <div className={"max-w-[85%] px-3 py-2 rounded-xl text-sm " + (msg.isAgent ? "bg-blue-50 text-blue-900" : "bg-gray-100 text-gray-900")}>
-                      <p className={"text-xs font-medium mb-0.5 " + (msg.isAgent ? "text-blue-600" : "text-gray-500")}>{msg.role}</p>
-                      <p>{msg.text}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-400 text-center py-4">Nessun transcript disponibile per questa chiamata</p>
+              {callDetail.summary && (
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">Riepilogo AI</p>
+                  <p className="text-sm text-gray-700">{callDetail.summary}</p>
+                </div>
               )}
-            </div>
-          </div>
+
+              <div>
+                <p className="text-xs text-gray-500 mb-2 font-medium">Conversazione completa</p>
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {parseTranscriptMessages(callDetail).length > 0 ? (
+                    parseTranscriptMessages(callDetail).map((msg: any, i: number) => (
+                      <div key={i} className={"flex " + (msg.isAgent ? "justify-start" : "justify-end")}>
+                        <div className={"max-w-[85%] px-3 py-2 rounded-xl text-sm " + (msg.isAgent ? "bg-blue-50 text-blue-900" : "bg-gray-100 text-gray-900")}>
+                          <p className={"text-xs font-medium mb-0.5 " + (msg.isAgent ? "text-blue-600" : "text-gray-500")}>{msg.role}</p>
+                          <p>{msg.text}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-400 text-center py-4">Nessun transcript disponibile per questa chiamata</p>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="py-8 text-center"><p className="text-sm text-gray-400">Errore nel caricamento</p></div>
+          )}
         </div>
       )}
 
@@ -255,11 +245,10 @@ export default function ChiamatePage() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {filteredCalls.length > 0 ? (
           <>
-            {/* Mobile: cards */}
             <div className="sm:hidden divide-y divide-gray-100">
               {filteredCalls.map((call) => (
-                <button key={call.id} onClick={() => setSelectedCall(selectedCall?.id === call.id ? null : call)}
-                  className={"w-full text-left p-4 transition-colors " + (selectedCall?.id === call.id ? "bg-blue-50" : "hover:bg-gray-50")}>
+                <button key={call.id} onClick={() => loadCallDetail(call.id)}
+                  className={"w-full text-left p-4 transition-colors " + (selectedCallId === call.id ? "bg-blue-50" : "hover:bg-gray-50")}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-gray-900">{formatPhone(call.customerPhone)}</span>
                     <span className={"inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium " + getStatusColor(call)}>
@@ -268,14 +257,12 @@ export default function ChiamatePage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-500">{formatDateTime(call.startedAt)}</span>
-                    <span className="text-xs text-gray-500">{formatDuration(call.duration)}</span>
+                    <span className="text-xs text-gray-500">{formatDuration(call.duration)}{call.cost ? " - $" + call.cost : ""}</span>
                   </div>
-                  {call.cost && <span className="text-xs text-gray-400">${call.cost}</span>}
                 </button>
               ))}
             </div>
 
-            {/* Desktop: tabella */}
             <table className="w-full hidden sm:table">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
@@ -288,9 +275,8 @@ export default function ChiamatePage() {
               </thead>
               <tbody>
                 {filteredCalls.map((call) => (
-                  <tr key={call.id}
-                    onClick={() => setSelectedCall(selectedCall?.id === call.id ? null : call)}
-                    className={"border-b border-gray-100 last:border-0 cursor-pointer transition-colors " + (selectedCall?.id === call.id ? "bg-blue-50" : "hover:bg-gray-50")}>
+                  <tr key={call.id} onClick={() => loadCallDetail(call.id)}
+                    className={"border-b border-gray-100 last:border-0 cursor-pointer transition-colors " + (selectedCallId === call.id ? "bg-blue-50" : "hover:bg-gray-50")}>
                     <td className="px-4 py-3 text-sm text-gray-900">{formatDateTime(call.startedAt)}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 font-mono">{formatPhone(call.customerPhone)}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{formatDuration(call.duration)}</td>
