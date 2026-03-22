@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get("limit") || "50";
 
     // Fetch calls da Vapi filtrati per assistant
-    const vapiUrl = "https://api.vapi.ai/call?assistantId=" + restaurant.vapi_assistant_id + "&limit=" + limit + "&sortOrder=DESC";
+    const vapiUrl = "https://api.vapi.ai/call?assistantId=" + restaurant.vapi_assistant_id + "&limit=" + limit;
 
     const vapiRes = await fetch(vapiUrl, {
       headers: { "Authorization": "Bearer " + restaurant.vapi_api_key },
