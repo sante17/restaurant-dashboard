@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 const baseMenuItems = [
   { href: "/dashboard", label: "Panoramica", icon: "📊" },
   { href: "/dashboard/prenotazioni", label: "Prenotazioni", icon: "📅" },
+  { href: "/dashboard/chiamate", label: "Chiamate", icon: "📞" },
   { href: "/dashboard/menu", label: "Menu", icon: "🍽️" },
   { href: "/dashboard/orari", label: "Orari", icon: "🕐" },
   { href: "/dashboard/tavoli", label: "Tavoli", icon: "🪑" },
