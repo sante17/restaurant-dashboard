@@ -114,63 +114,70 @@ export default function OrariPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Orari di Apertura</h1>
-          <p className="text-gray-500 mt-1">Imposta gli orari per ogni giorno della settimana</p>
+          <p className="text-gray-500 mt-1 text-sm">Imposta gli orari per ogni giorno della settimana</p>
         </div>
         <div className="flex items-center gap-3">
-          {saved && <span className="text-sm text-green-600 font-medium">Salvato e agente aggiornato!</span>}
-          {syncing && <span className="text-sm text-blue-600 font-medium">Aggiornamento agente...</span>}
-          <button onClick={saveAll} disabled={saving || syncing} className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+          {saved && <span className="text-sm text-green-600 font-medium">Salvato!</span>}
+          {syncing && <span className="text-sm text-blue-600 font-medium">Sync agente...</span>}
+          <button onClick={saveAll} disabled={saving || syncing} className="w-full sm:w-auto px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
             {saving ? "Salvataggio..." : syncing ? "Sync agente..." : "Salva tutto"}
           </button>
         </div>
       </div>
 
-      <div className="space-y-4 mb-10">
+      {/* Orari settimanali */}
+      <div className="space-y-3 mb-10">
         {hours.map((hour) => (
-          <div key={hour.id} className={"bg-white rounded-xl border border-gray-200 p-5 transition-opacity " + (hour.is_closed ? "opacity-60" : "")}>
-            <div className="flex items-center gap-6">
-              <div className="w-28"><p className="font-semibold text-gray-900">{DAYS[hour.day_of_week]}</p></div>
-              <label className="flex items-center gap-2 cursor-pointer w-32">
+          <div key={hour.id} className={"bg-white rounded-xl border border-gray-200 p-4 transition-opacity " + (hour.is_closed ? "opacity-60" : "")}>
+            {/* Riga 1: Giorno + Chiuso */}
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-semibold text-gray-900">{DAYS[hour.day_of_week]}</p>
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={hour.is_closed} onChange={(e) => updateHour(hour.day_of_week, "is_closed", e.target.checked)} className="w-4 h-4 text-red-600 rounded border-gray-300" />
                 <span className="text-sm text-gray-600">Chiuso</span>
               </label>
-              {!hour.is_closed && (
-                <>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 font-medium w-14">Pranzo</span>
-                    <input type="time" value={hour.lunch_open || ""} onChange={(e) => updateHour(hour.day_of_week, "lunch_open", e.target.value)} className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
-                    <span className="text-gray-400">-</span>
-                    <input type="time" value={hour.lunch_close || ""} onChange={(e) => updateHour(hour.day_of_week, "lunch_close", e.target.value)} className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 font-medium w-14">Cena</span>
-                    <input type="time" value={hour.dinner_open || ""} onChange={(e) => updateHour(hour.day_of_week, "dinner_open", e.target.value)} className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
-                    <span className="text-gray-400">-</span>
-                    <input type="time" value={hour.dinner_close || ""} onChange={(e) => updateHour(hour.day_of_week, "dinner_close", e.target.value)} className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
-                  </div>
-                </>
-              )}
             </div>
+
+            {/* Riga 2: Orari (solo se aperto) */}
+            {!hour.is_closed && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Pranzo */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 font-medium w-14 shrink-0">Pranzo</span>
+                  <input type="time" value={hour.lunch_open || ""} onChange={(e) => updateHour(hour.day_of_week, "lunch_open", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                  <span className="text-gray-400">-</span>
+                  <input type="time" value={hour.lunch_close || ""} onChange={(e) => updateHour(hour.day_of_week, "lunch_close", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                </div>
+                {/* Cena */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 font-medium w-14 shrink-0">Cena</span>
+                  <input type="time" value={hour.dinner_open || ""} onChange={(e) => updateHour(hour.day_of_week, "dinner_open", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                  <span className="text-gray-400">-</span>
+                  <input type="time" value={hour.dinner_close || ""} onChange={(e) => updateHour(hour.day_of_week, "dinner_close", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      <div className="flex items-center justify-between mb-4">
+      {/* Chiusure straordinarie */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Chiusure Straordinarie</h2>
-          <p className="text-gray-500 mt-1">Ferie, festivi, chiusure temporanee</p>
+          <p className="text-gray-500 mt-1 text-sm">Ferie, festivi, chiusure temporanee</p>
         </div>
-        <button onClick={() => setShowAddClosure(!showAddClosure)} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+        <button onClick={() => setShowAddClosure(!showAddClosure)} className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
           + Aggiungi chiusura
         </button>
       </div>
 
       {showAddClosure && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
-          <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div>
               <label className="block text-xs text-gray-600 mb-1">Data inizio</label>
               <input type="date" value={newClosure.start_date} onChange={(e) => setNewClosure({ ...newClosure, start_date: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900" />
@@ -185,38 +192,53 @@ export default function OrariPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={addClosure} className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Aggiungi</button>
-            <button onClick={() => setShowAddClosure(false)} className="px-4 py-1.5 text-gray-600 text-sm rounded-lg hover:bg-gray-100">Annulla</button>
+            <button onClick={addClosure} className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Aggiungi</button>
+            <button onClick={() => setShowAddClosure(false)} className="flex-1 sm:flex-none px-4 py-2 text-gray-600 text-sm rounded-lg hover:bg-gray-100 border border-gray-200">Annulla</button>
           </div>
         </div>
       )}
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {closures.length > 0 ? (
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-6 py-3">Periodo</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-6 py-3">Motivo</th>
-                <th className="text-right text-xs font-semibold text-gray-500 uppercase px-6 py-3">Azioni</th>
-              </tr>
-            </thead>
-            <tbody>
+          <div>
+            {/* Mobile: cards */}
+            <div className="sm:hidden divide-y divide-gray-100">
               {closures.map((c) => (
-                <tr key={c.id} className="border-b border-gray-100 last:border-0">
-                  <td className="px-6 py-3 text-sm text-gray-900">
-                    {c.start_date === c.end_date
-                      ? formatDate(c.start_date)
-                      : formatDate(c.start_date) + " -> " + formatDate(c.end_date)}
-                  </td>
-                  <td className="px-6 py-3 text-sm text-gray-600">{c.reason || "---"}</td>
-                  <td className="px-6 py-3 text-right">
-                    <button onClick={() => deleteClosure(c.id)} className="text-sm text-red-600 hover:text-red-800 font-medium">Rimuovi</button>
-                  </td>
-                </tr>
+                <div key={c.id} className="p-4 flex justify-between items-start">
+                  <div>
+                    <p className="text-sm text-gray-900">
+                      {c.start_date === c.end_date ? formatDate(c.start_date) : formatDate(c.start_date) + " - " + formatDate(c.end_date)}
+                    </p>
+                    {c.reason && <p className="text-xs text-gray-500 mt-1">{c.reason}</p>}
+                  </div>
+                  <button onClick={() => deleteClosure(c.id)} className="text-sm text-red-600 hover:text-red-800 font-medium shrink-0 ml-2">Rimuovi</button>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+            {/* Desktop: table */}
+            <table className="w-full hidden sm:table">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="text-left text-xs font-semibold text-gray-500 uppercase px-6 py-3">Periodo</th>
+                  <th className="text-left text-xs font-semibold text-gray-500 uppercase px-6 py-3">Motivo</th>
+                  <th className="text-right text-xs font-semibold text-gray-500 uppercase px-6 py-3">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {closures.map((c) => (
+                  <tr key={c.id} className="border-b border-gray-100 last:border-0">
+                    <td className="px-6 py-3 text-sm text-gray-900">
+                      {c.start_date === c.end_date ? formatDate(c.start_date) : formatDate(c.start_date) + " -> " + formatDate(c.end_date)}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-gray-600">{c.reason || "---"}</td>
+                    <td className="px-6 py-3 text-right">
+                      <button onClick={() => deleteClosure(c.id)} className="text-sm text-red-600 hover:text-red-800 font-medium">Rimuovi</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p className="px-6 py-8 text-sm text-gray-400 text-center">Nessuna chiusura straordinaria programmata</p>
         )}
