@@ -4,10 +4,7 @@ import { createClient } from "../../../lib/supabase/client";
 import { useEffect, useState } from "react";
 
 interface Table {
-  id: string;
-  name: string;
-  seats: number;
-  is_active: boolean;
+  id: string; name: string; seats: number; is_active: boolean;
 }
 
 export default function TavoliPage() {
@@ -58,58 +55,58 @@ export default function TavoliPage() {
     if (!rid) return;
     await supabase.from("tables").insert({ restaurant_id: rid, name: newName.trim(), seats: newSeats, is_active: true });
     setNewName(""); setNewSeats(4);
-    loadTables();
-    await syncAll();
+    loadTables(); await syncAll();
   }
 
   async function updateTable(id: string) {
     await supabase.from("tables").update({ name: editName.trim(), seats: editSeats }).eq("id", id);
     setEditingId(null);
-    loadTables();
-    await syncAll();
+    loadTables(); await syncAll();
   }
 
   async function toggleActive(id: string, currentActive: boolean) {
     await supabase.from("tables").update({ is_active: !currentActive }).eq("id", id);
-    loadTables();
-    await syncAll();
+    loadTables(); await syncAll();
   }
 
   async function deleteTable(id: string) {
     if (!confirm("Sei sicuro di voler eliminare questo tavolo?")) return;
     await supabase.from("tables").delete().eq("id", id);
-    loadTables();
-    await syncAll();
+    loadTables(); await syncAll();
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><p className="text-gray-500">Caricamento...</p></div>;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gestione Tavoli</h1>
-          <p className="text-gray-500 mt-1">Aggiungi, modifica o rimuovi i tavoli del ristorante</p>
+          <p className="text-gray-500 mt-1 text-sm">Aggiungi, modifica o rimuovi i tavoli del ristorante</p>
         </div>
-        {syncing && <span className="text-sm text-blue-600 font-medium">Sync Google Sheet + agente AI...</span>}
+        {syncing && <span className="text-sm text-blue-600 font-medium">Sync in corso...</span>}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+      {/* Aggiungi tavolo */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-6">
         <h2 className="text-sm font-semibold text-gray-900 mb-4">Aggiungi nuovo tavolo</h2>
-        <div className="flex gap-4 items-end">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <label className="block text-sm text-gray-600 mb-1">Nome</label>
-            <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="es. Tavolo7" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900" />
+            <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="es. Tavolo7" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
           </div>
-          <div className="w-32">
+          <div className="w-full sm:w-32">
             <label className="block text-sm text-gray-600 mb-1">Posti</label>
-            <input type="number" value={newSeats} onChange={(e) => setNewSeats(parseInt(e.target.value) || 1)} min={1} max={20} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900" />
+            <input type="number" value={newSeats} onChange={(e) => setNewSeats(parseInt(e.target.value) || 1)} min={1} max={20} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
           </div>
-          <button onClick={addTable} className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">Aggiungi</button>
+          <div className="flex items-end">
+            <button onClick={addTable} className="w-full sm:w-auto px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">Aggiungi</button>
+          </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {/* Desktop: tabella */}
+      <div className="hidden sm:block bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
@@ -153,6 +150,54 @@ export default function TavoliPage() {
             {tables.length === 0 && <tr><td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-500">Nessun tavolo. Aggiungine uno!</td></tr>}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile: cards */}
+      <div className="sm:hidden space-y-3">
+        {tables.map((table) => (
+          <div key={table.id} className={"bg-white rounded-xl border border-gray-200 p-4 " + (!table.is_active ? "opacity-60" : "")}>
+            {editingId === table.id ? (
+              <div>
+                <div className="flex gap-3 mb-3">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-600 mb-1">Nome</label>
+                    <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                  </div>
+                  <div className="w-20">
+                    <label className="block text-xs text-gray-600 mb-1">Posti</label>
+                    <input type="number" value={editSeats} onChange={(e) => setEditSeats(parseInt(e.target.value) || 1)} min={1} max={20} className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => updateTable(table.id)} className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Salva</button>
+                  <button onClick={() => setEditingId(null)} className="flex-1 px-3 py-1.5 text-gray-600 text-sm rounded-lg hover:bg-gray-100 border border-gray-200">Annulla</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{table.name}</p>
+                    <p className="text-xs text-gray-500">{table.seats} posti</p>
+                  </div>
+                  <span className={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium " + (table.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
+                    {table.is_active ? "Attivo" : "Disattivato"}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => { setEditingId(table.id); setEditName(table.name); setEditSeats(table.seats); }} className="flex-1 px-3 py-1.5 text-blue-600 text-xs font-medium rounded-lg border border-blue-200 hover:bg-blue-50">Modifica</button>
+                  <button onClick={() => toggleActive(table.id, table.is_active)} className="flex-1 px-3 py-1.5 text-amber-600 text-xs font-medium rounded-lg border border-amber-200 hover:bg-amber-50">{table.is_active ? "Disattiva" : "Attiva"}</button>
+                  <button onClick={() => deleteTable(table.id)} className="flex-1 px-3 py-1.5 text-red-600 text-xs font-medium rounded-lg border border-red-200 hover:bg-red-50">Elimina</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+        {tables.length === 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+            <p className="text-sm text-gray-500">Nessun tavolo. Aggiungine uno!</p>
+          </div>
+        )}
       </div>
     </div>
   );
