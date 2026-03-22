@@ -34,6 +34,8 @@ CREATE TABLE opening_hours (
   restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
   day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
   is_closed BOOLEAN DEFAULT false,
+  breakfast_open TIME,
+  breakfast_close TIME,
   lunch_open TIME,
   lunch_close TIME,
   dinner_open TIME,
