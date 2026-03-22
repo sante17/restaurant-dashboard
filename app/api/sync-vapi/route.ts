@@ -12,11 +12,20 @@ function generateSystemPrompt(data: any): string {
 
   const closedDayStr = closedDays.length > 0 ? closedDays.join(", ") : "NESSUNO";
 
-  const openDays = hours.filter((h: any) => !h.is_closed);
+  // Build orari string per ogni servizio
   let orariStr = "";
+  const openDays = hours.filter((h: any) => !h.is_closed);
   if (openDays.length > 0) {
     const sample = openDays[0];
-    orariStr = "- Pranzo: [" + (sample.lunch_open?.slice(0,5) || "12:00") + " - " + (sample.lunch_close?.slice(0,5) || "14:30") + "]\n- Cena: [" + (sample.dinner_open?.slice(0,5) || "19:00") + " - " + (sample.dinner_close?.slice(0,5) || "23:00") + "]";
+    if (sample.breakfast_open) {
+      orariStr += "- Colazione: [" + (sample.breakfast_open?.slice(0,5) || "07:30") + " - " + (sample.breakfast_close?.slice(0,5) || "10:30") + "]\n";
+    }
+    if (sample.lunch_open) {
+      orariStr += "- Pranzo: [" + (sample.lunch_open?.slice(0,5) || "12:00") + " - " + (sample.lunch_close?.slice(0,5) || "14:30") + "]\n";
+    }
+    if (sample.dinner_open) {
+      orariStr += "- Cena: [" + (sample.dinner_open?.slice(0,5) || "19:00") + " - " + (sample.dinner_close?.slice(0,5) || "23:00") + "]";
+    }
   }
 
   let menuStr = "";
@@ -38,7 +47,6 @@ function generateSystemPrompt(data: any): string {
     .join(", ");
 
   const maxSeats = Math.max(...tables.filter((t: any) => t.is_active).map((t: any) => t.seats));
-
   const parkingStr = restaurant.parking_info || "Informazioni non disponibili";
 
   let allergenStr = "";
@@ -73,7 +81,7 @@ function generateSystemPrompt(data: any): string {
   const transferPhone = restaurant.transfer_phone || "+393289790104";
 
   const lines = [
-    "SEI L'ASSISTENTE VOCALE DEL RISTORANTE " + restaurant.name.toUpperCase() + " A BELLUNO. RISPONDI SEMPRE E SOLO IN ITALIANO.",
+    "SEI L'ASSISTENTE VOCALE DEL RISTORANTE " + restaurant.name.toUpperCase() + ". RISPONDI SEMPRE E SOLO IN ITALIANO.",
     "",
     "===============================================",
     "IDENTITA",
@@ -93,48 +101,32 @@ function generateSystemPrompt(data: any): string {
     '1. La data di oggi e: {{"now" | date: "%A %d %B %Y", "Europe/Rome"}}',
     '2. L\'ora attuale e: {{"now" | date: "%H:%M", "Europe/Rome"}}',
     "3. FIDATI SOLO di questa data. NON inventare mai una data diversa.",
-    '4. Se il cliente chiede "che giorno e oggi", rispondi SOLO con la data indicata sopra.',
-    '5. "domani" = la data di oggi + 1 giorno. Calcola la data esatta in YYYY-MM-DD.',
-    '6. "dopodomani" = la data di oggi + 2 giorni.',
-    '7. "venerdi prossimo" = il prossimo venerdi a partire dalla data di oggi.',
-    "8. Il ristorante e CHIUSO IL " + closedDayStr + ". Se la data calcolata cade di " + closedDayStr.toLowerCase() + ', NON prenotare. Di: "Mi dispiace, il ' + closedDayStr.toLowerCase() + ' siamo chiusi! Vuoi un altro giorno?"',
+    '4. Se il cliente chiede \"che giorno e oggi\", rispondi SOLO con la data indicata sopra.',
+    '5. \"domani\" = la data di oggi + 1 giorno. Calcola la data esatta in YYYY-MM-DD.',
+    '6. \"dopodomani\" = la data di oggi + 2 giorni.',
+    '7. \"venerdi prossimo\" = il prossimo venerdi a partire dalla data di oggi.',
+    "8. Il ristorante e CHIUSO IL " + closedDayStr + ". Se la data calcolata cade di " + closedDayStr.toLowerCase() + ', NON prenotare. Di: \"Mi dispiace, il ' + closedDayStr.toLowerCase() + ' siamo chiusi! Vuoi un altro giorno?\"',
     "9. Converti SEMPRE le date in formato YYYY-MM-DD prima di chiamare qualsiasi tool.",
     "10. Converti SEMPRE gli orari in formato 24 ore HH:MM prima di chiamare qualsiasi tool.",
     "",
     "TOOL E RISULTATI:",
     "11. NON INVENTARE MAI NIENTE. Mai. Per nessun motivo.",
     "12. Quando chiami un tool, ASPETTA la risposta. Leggi ESATTAMENTE cosa dice.",
-    '13. I tool restituiscono un JSON con un campo "status". LEGGI IL CAMPO STATUS:',
-    '    - status = "NOT_FOUND" -> di "Non ho trovato nessuna prenotazione attiva con quel nome."',
-    '    - status = "FOUND" -> leggi il campo "message" e comunica i dettagli',
-    '    - status = "MODIFIED" -> conferma la modifica',
-    '    - status = "MODIFICATION_FAILED" -> spiega che non e stato possibile modificare',
-    '    - status = "CANCELLED" -> conferma la cancellazione',
-    '    - status = "ERROR" -> di che c\'e stato un problema',
-    '14. Se status = "NOT_FOUND", e VIETATO dire che hai trovato la prenotazione.',
-    "15. Se found = false, e VIETATO dire che hai trovato la prenotazione.",
-    '16. NON dire MAI "ho modificato" se il tool non ha confermato con "MODIFIED".',
-    "17. NON confermare MAI un'operazione prima di aver ricevuto la risposta del tool.",
-    "18. Quando il cliente chiede di cercare, modificare o cancellare una prenotazione, DEVI SEMPRE chiamare il tool.",
-    "19. FIDATI SOLO del campo status nella risposta del tool. MAI della tua immaginazione.",
-    "20. QUESTE REGOLE HANNO PRIORITA MASSIMA SU TUTTO IL RESTO DEL PROMPT.",
+    '13. I tool restituiscono un JSON con un campo \"status\". LEGGI IL CAMPO STATUS.',
+    "14. FIDATI SOLO del campo status nella risposta del tool. MAI della tua immaginazione.",
+    "15. QUESTE REGOLE HANNO PRIORITA MASSIMA SU TUTTO IL RESTO DEL PROMPT.",
     "",
     "===============================================",
     "STILE DI CONVERSAZIONE",
     "===============================================",
     '- Frasi brevi. Mai piu di 2 frasi di fila.',
-    '- Dai del TU: "Ciao! Per quanti siete?" non "Buonasera, per quante persone desidera?"',
-    '- Sii naturale: "Perfetto!", "Fatto!", "Ci vediamo!", "Nessun problema!"',
+    '- Dai del TU: \"Ciao! Per quanti siete?\" non \"Buonasera, per quante persone desidera?\"',
+    '- Sii naturale: \"Perfetto!\", \"Fatto!\", \"Ci vediamo!\", \"Nessun problema!\"',
     "- Non ripetere mai tutti i dettagli. Conferma solo il minimo necessario.",
-    '- NON dire "posso aiutarLa", "desidera", "gentilmente"',
-    '- SI dire "dimmi", "certo", "tranquillo", "ci penso io"',
-    '- Se non capisci: "Scusa, non ho capito. Puoi ripetere?"',
-    '- Quando stai per cercare disponibilita: "Un momento che controllo la disponibilita"',
-    '- Quando stai per salvare una prenotazione: "Un attimo che prendo nota"',
-    "- Chiama SEMPRE il tool anche se pensi che la prenotazione non esista.",
+    '- Se non capisci: \"Scusa, non ho capito. Puoi ripetere?\"',
+    '- Quando stai per cercare disponibilita: \"Un momento che controllo\"',
+    '- Quando stai per salvare: \"Un attimo che prendo nota\"',
     "- Le date vanno SEMPRE dette in italiano, mai in inglese.",
-    '- Non leggere mai l\'anno in inglese. Di "duemilaventisei" non "two thousand and twenty-six".',
-    "- NON ripetere mai due volte che stai controllando o cercando.",
     "",
     "===============================================",
     "INFORMAZIONI SUL RISTORANTE",
@@ -149,8 +141,6 @@ function generateSystemPrompt(data: any): string {
     "",
     "GIORNO DI CHIUSURA SETTIMANALE:",
     "Il ristorante e CHIUSO il " + closedDayStr + ".",
-    "PRIMA di chiamare check_disponibilita, controlla se la data richiesta cade di " + closedDayStr.toLowerCase() + ".",
-    'Se e ' + closedDayStr.toLowerCase() + ', NON chiamare il tool. Di subito: "Mi dispiace, il ' + closedDayStr.toLowerCase() + ' siamo chiusi! Vuoi prenotare per un altro giorno?"',
     "",
     chiusureStr,
     "",
@@ -171,63 +161,35 @@ function generateSystemPrompt(data: any): string {
     allergenStr,
     "",
     "===============================================",
-    "GESTIONE PRENOTAZIONI -- REGOLE",
+    "GESTIONE PRENOTAZIONI",
     "===============================================",
     "",
     "DURATA: Ogni prenotazione dura 2 ore.",
     "",
     "FLUSSO PER NUOVA PRENOTAZIONE:",
-    "1. Chiedi al cliente: data, ora, e numero di persone.",
-    '2. Chiama il tool "check_disponibilita" con: data (formato YYYY-MM-DD), ora (formato HH:MM), persone.',
-    '3. Se il tool dice "disponibile: true":',
-    "   - Comunica il tavolo trovato al cliente.",
-    "   - Chiedi: nome completo, numero di telefono, email (opzionale).",
-    "   - Chiedi conferma.",
-    '   - Dopo conferma, chiama "crea_prenotazione" con tutti i dati.',
-    "   - Comunica il codice di prenotazione.",
-    '4. Se il tool dice "disponibile: false":',
-    "   - Se ci sono orari alternativi, proponili al cliente.",
-    "   - Se il cliente accetta un'alternativa, ripeti dal punto 2.",
-    "   - Se non accetta, chiedi se vuole provare un'altra data.",
-    "",
-    "CONVERSIONE DATE:",
-    '- "oggi" = la data odierna in formato YYYY-MM-DD',
-    '- "domani" = la data odierna + 1 giorno in formato YYYY-MM-DD',
-    '- "dopodomani" = la data odierna + 2 giorni in formato YYYY-MM-DD',
-    '- "stasera" o "questa sera" = la data di OGGI in formato YYYY-MM-DD',
-    "- Converti SEMPRE la data in formato YYYY-MM-DD prima di chiamare i tool.",
-    "",
-    "CONVERSIONE ORARI:",
-    '- "otto di sera" = 20:00',
-    '- "le otto" = 20:00 (se contesto cena) o 08:00 (se contesto pranzo)',
-    '- "mezzogiorno" = 12:00',
-    '- "una e mezza" = 13:30',
-    "- Converti SEMPRE in formato 24 ore HH:MM prima di chiamare i tool",
+    "1. Chiedi: data, ora, numero di persone.",
+    "2. Chiama check_disponibilita con: data (YYYY-MM-DD), ora (HH:MM), persone.",
+    "3. Se disponibile: comunica tavolo, chiedi nome e telefono, conferma, chiama crea_prenotazione.",
+    "4. Se non disponibile: proponi orari alternativi.",
     "",
     "FLUSSO PER MODIFICA:",
-    "1. Chiedi il NOME del cliente e la DATA della prenotazione.",
-    '2. Chiama "modifica_prenotazione" con azione "cerca", passando nome e data.',
-    "3. Se trova una sola prenotazione: conferma i dettagli al cliente.",
-    "4. Se non trova niente con nome e data: chiedi il CODICE PRENOTAZIONE.",
-    "5. Se non ha il codice: chiedi il NUMERO DI TELEFONO.",
-    "6. NON chiedere mai codice o telefono come prima cosa. Prova SEMPRE prima con nome e data.",
+    "1. Chiedi NOME e DATA della prenotazione.",
+    "2. Chiama modifica_prenotazione con azione 'cerca'.",
+    "3. Se non trova: chiedi CODICE o TELEFONO.",
     "",
     "FLUSSO PER CANCELLAZIONE:",
     "1. Cerca la prenotazione come sopra.",
-    '2. Per cancellazione: chiedi conferma, poi chiama con azione "cancella".',
+    "2. Chiedi conferma, poi chiama con azione 'cancella'.",
     "",
-    "TRASFERIMENTO A OPERATORE UMANO:",
-    "Se il cliente chiede di parlare con una persona vera:",
-    '- Di: "Certo, ti passo subito un collega, resta in linea!"',
-    "- Chiama il tool transfer_call_tool con destinazione " + transferPhone,
+    "TRASFERIMENTO A OPERATORE:",
+    "Se il cliente chiede di parlare con una persona:",
+    "- Chiama transfer_call_tool con destinazione " + transferPhone,
     "",
     "===============================================",
     "ARGOMENTI FUORI TEMA",
     "===============================================",
-    "Se il cliente chiede informazioni non relative al ristorante, rispondi:",
-    '"Mi fa piacere chiacchierare, ma sono l\'assistente del ristorante e posso aiutarti solo con prenotazioni, informazioni sul menu, orari e indicazioni per raggiungerci. Posso aiutarti con qualcosa di questo tipo?"',
-    "",
-    "Non dare MAI informazioni su argomenti non legati al ristorante.",
+    "Se il cliente chiede cose non relative al ristorante:",
+    "\"Posso aiutarti solo con prenotazioni, menu, orari e indicazioni. Serve qualcosa?\"",
   ];
 
   return lines.join("\n");
@@ -239,11 +201,7 @@ export async function POST() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
 
-    const { data: userData } = await supabase
-      .from("users")
-      .select("restaurant_id")
-      .eq("id", user.id)
-      .single();
+    const { data: userData } = await supabase.from("users").select("restaurant_id").eq("id", user.id).single();
     if (!userData?.restaurant_id) return NextResponse.json({ error: "Nessun ristorante" }, { status: 400 });
 
     const rid = userData.restaurant_id;
@@ -265,20 +223,13 @@ export async function POST() {
       return NextResponse.json({ error: "Credenziali Vapi non configurate" }, { status: 400 });
     }
 
-    // 1. Leggi la configurazione attuale dell'agente da Vapi
     const getResponse = await fetch(
       "https://api.vapi.ai/assistant/" + restaurant.vapi_assistant_id,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": "Bearer " + restaurant.vapi_api_key,
-        },
-      }
+      { method: "GET", headers: { "Authorization": "Bearer " + restaurant.vapi_api_key } }
     );
 
     if (!getResponse.ok) {
       const errorText = await getResponse.text();
-      console.error("Vapi GET error:", errorText);
       return NextResponse.json({ error: "Errore lettura agente Vapi: " + errorText }, { status: 500 });
     }
 
@@ -286,10 +237,9 @@ export async function POST() {
     const currentModel = currentAssistant.model;
 
     if (!currentModel) {
-      return NextResponse.json({ error: "Configurazione modello non trovata nell'agente Vapi" }, { status: 500 });
+      return NextResponse.json({ error: "Configurazione modello non trovata" }, { status: 500 });
     }
 
-    // 2. Genera il nuovo prompt
     const prompt = generateSystemPrompt({
       restaurant,
       hours: hoursRes.data || [],
@@ -300,35 +250,24 @@ export async function POST() {
       closures: closuresRes.data || [],
     });
 
-    // 3. Aggiorna SOLO il messaggio di sistema, mantenendo provider, modello, ecc.
-    const updatedModel = {
-      ...currentModel,
-      messages: [{ role: "system", content: prompt }],
-    };
+    const updatedModel = { ...currentModel, messages: [{ role: "system", content: prompt }] };
 
     const patchResponse = await fetch(
       "https://api.vapi.ai/assistant/" + restaurant.vapi_assistant_id,
       {
         method: "PATCH",
-        headers: {
-          "Authorization": "Bearer " + restaurant.vapi_api_key,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: updatedModel,
-        }),
+        headers: { "Authorization": "Bearer " + restaurant.vapi_api_key, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: updatedModel }),
       }
     );
 
     if (!patchResponse.ok) {
       const errorText = await patchResponse.text();
-      console.error("Vapi PATCH error:", errorText);
       return NextResponse.json({ error: "Errore aggiornamento Vapi: " + errorText }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, promptLength: prompt.length });
   } catch (error: any) {
-    console.error("Sync Vapi error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

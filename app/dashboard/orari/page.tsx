@@ -7,6 +7,7 @@ const DAYS = ["Domenica", "Lunedi", "Martedi", "Mercoledi", "Giovedi", "Venerdi"
 
 interface OpeningHour {
   id: string; day_of_week: number; is_closed: boolean;
+  breakfast_open: string | null; breakfast_close: string | null;
   lunch_open: string | null; lunch_close: string | null;
   dinner_open: string | null; dinner_close: string | null;
 }
@@ -66,11 +67,33 @@ export default function OrariPage() {
     setSaved(false);
   }
 
+  function toggleMeal(dayIndex: number, meal: "breakfast" | "lunch" | "dinner") {
+    setHours((prev) => prev.map((h) => {
+      if (h.day_of_week !== dayIndex) return h;
+      const openKey = meal + "_open" as keyof OpeningHour;
+      const closeKey = meal + "_close" as keyof OpeningHour;
+      const isCurrentlyOpen = h[openKey] !== null;
+      if (isCurrentlyOpen) {
+        return { ...h, [openKey]: null, [closeKey]: null };
+      } else {
+        const defaults: Record<string, [string, string]> = {
+          breakfast: ["07:30", "10:30"],
+          lunch: ["12:00", "14:30"],
+          dinner: ["19:00", "23:00"],
+        };
+        return { ...h, [openKey]: defaults[meal][0], [closeKey]: defaults[meal][1] };
+      }
+    }));
+    setSaved(false);
+  }
+
   async function saveAll() {
     setSaving(true);
     for (const h of hours) {
       await supabase.from("opening_hours").update({
         is_closed: h.is_closed,
+        breakfast_open: h.is_closed ? null : h.breakfast_open,
+        breakfast_close: h.is_closed ? null : h.breakfast_close,
         lunch_open: h.is_closed ? null : h.lunch_open,
         lunch_close: h.is_closed ? null : h.lunch_close,
         dinner_open: h.is_closed ? null : h.dinner_open,
@@ -87,22 +110,18 @@ export default function OrariPage() {
     const rid = await getRestaurantId();
     if (!rid) return;
     await supabase.from("closures").insert({
-      restaurant_id: rid,
-      start_date: newClosure.start_date,
-      end_date: newClosure.end_date,
-      reason: newClosure.reason || null,
+      restaurant_id: rid, start_date: newClosure.start_date,
+      end_date: newClosure.end_date, reason: newClosure.reason || null,
     });
     setNewClosure({ start_date: "", end_date: "", reason: "" });
     setShowAddClosure(false);
-    loadData();
-    await syncAll();
+    loadData(); await syncAll();
   }
 
   async function deleteClosure(id: string) {
     if (!confirm("Rimuovere questa chiusura?")) return;
     await supabase.from("closures").delete().eq("id", id);
-    loadData();
-    await syncAll();
+    loadData(); await syncAll();
   }
 
   function formatDate(dateStr: string) {
@@ -128,35 +147,71 @@ export default function OrariPage() {
         </div>
       </div>
 
-      {/* Orari settimanali */}
       <div className="space-y-3 mb-10">
         {hours.map((hour) => (
           <div key={hour.id} className={"bg-white rounded-xl border border-gray-200 p-4 transition-opacity " + (hour.is_closed ? "opacity-60" : "")}>
-            {/* Riga 1: Giorno + Chiuso */}
             <div className="flex items-center justify-between mb-3">
               <p className="font-semibold text-gray-900">{DAYS[hour.day_of_week]}</p>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={hour.is_closed} onChange={(e) => updateHour(hour.day_of_week, "is_closed", e.target.checked)} className="w-4 h-4 text-red-600 rounded border-gray-300" />
-                <span className="text-sm text-gray-600">Chiuso</span>
+                <span className="text-sm text-gray-600">Chiuso tutto il giorno</span>
               </label>
             </div>
 
-            {/* Riga 2: Orari (solo se aperto) */}
             {!hour.is_closed && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Pranzo */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 font-medium w-14 shrink-0">Pranzo</span>
-                  <input type="time" value={hour.lunch_open || ""} onChange={(e) => updateHour(hour.day_of_week, "lunch_open", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
-                  <span className="text-gray-400">-</span>
-                  <input type="time" value={hour.lunch_close || ""} onChange={(e) => updateHour(hour.day_of_week, "lunch_close", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+              <div className="space-y-3">
+                {/* Colazione */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <div className="flex items-center justify-between sm:justify-start gap-2 sm:w-40">
+                    <span className="text-xs text-gray-500 font-medium">Colazione</span>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="checkbox" checked={hour.breakfast_open !== null} onChange={() => toggleMeal(hour.day_of_week, "breakfast")} className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600" />
+                      <span className="text-xs text-gray-400">{hour.breakfast_open !== null ? "Aperto" : "Chiuso"}</span>
+                    </label>
+                  </div>
+                  {hour.breakfast_open !== null && (
+                    <div className="flex items-center gap-2 flex-1">
+                      <input type="time" value={hour.breakfast_open || ""} onChange={(e) => updateHour(hour.day_of_week, "breakfast_open", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                      <span className="text-gray-400">-</span>
+                      <input type="time" value={hour.breakfast_close || ""} onChange={(e) => updateHour(hour.day_of_week, "breakfast_close", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                    </div>
+                  )}
                 </div>
+
+                {/* Pranzo */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <div className="flex items-center justify-between sm:justify-start gap-2 sm:w-40">
+                    <span className="text-xs text-gray-500 font-medium">Pranzo</span>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="checkbox" checked={hour.lunch_open !== null} onChange={() => toggleMeal(hour.day_of_week, "lunch")} className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600" />
+                      <span className="text-xs text-gray-400">{hour.lunch_open !== null ? "Aperto" : "Chiuso"}</span>
+                    </label>
+                  </div>
+                  {hour.lunch_open !== null && (
+                    <div className="flex items-center gap-2 flex-1">
+                      <input type="time" value={hour.lunch_open || ""} onChange={(e) => updateHour(hour.day_of_week, "lunch_open", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                      <span className="text-gray-400">-</span>
+                      <input type="time" value={hour.lunch_close || ""} onChange={(e) => updateHour(hour.day_of_week, "lunch_close", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                    </div>
+                  )}
+                </div>
+
                 {/* Cena */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 font-medium w-14 shrink-0">Cena</span>
-                  <input type="time" value={hour.dinner_open || ""} onChange={(e) => updateHour(hour.day_of_week, "dinner_open", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
-                  <span className="text-gray-400">-</span>
-                  <input type="time" value={hour.dinner_close || ""} onChange={(e) => updateHour(hour.day_of_week, "dinner_close", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <div className="flex items-center justify-between sm:justify-start gap-2 sm:w-40">
+                    <span className="text-xs text-gray-500 font-medium">Cena</span>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="checkbox" checked={hour.dinner_open !== null} onChange={() => toggleMeal(hour.day_of_week, "dinner")} className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600" />
+                      <span className="text-xs text-gray-400">{hour.dinner_open !== null ? "Aperto" : "Chiuso"}</span>
+                    </label>
+                  </div>
+                  {hour.dinner_open !== null && (
+                    <div className="flex items-center gap-2 flex-1">
+                      <input type="time" value={hour.dinner_open || ""} onChange={(e) => updateHour(hour.day_of_week, "dinner_open", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                      <span className="text-gray-400">-</span>
+                      <input type="time" value={hour.dinner_close || ""} onChange={(e) => updateHour(hour.day_of_week, "dinner_close", e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900" />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -164,7 +219,6 @@ export default function OrariPage() {
         ))}
       </div>
 
-      {/* Chiusure straordinarie */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Chiusure Straordinarie</h2>
@@ -201,21 +255,17 @@ export default function OrariPage() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {closures.length > 0 ? (
           <div>
-            {/* Mobile: cards */}
             <div className="sm:hidden divide-y divide-gray-100">
               {closures.map((c) => (
                 <div key={c.id} className="p-4 flex justify-between items-start">
                   <div>
-                    <p className="text-sm text-gray-900">
-                      {c.start_date === c.end_date ? formatDate(c.start_date) : formatDate(c.start_date) + " - " + formatDate(c.end_date)}
-                    </p>
+                    <p className="text-sm text-gray-900">{c.start_date === c.end_date ? formatDate(c.start_date) : formatDate(c.start_date) + " - " + formatDate(c.end_date)}</p>
                     {c.reason && <p className="text-xs text-gray-500 mt-1">{c.reason}</p>}
                   </div>
                   <button onClick={() => deleteClosure(c.id)} className="text-sm text-red-600 hover:text-red-800 font-medium shrink-0 ml-2">Rimuovi</button>
                 </div>
               ))}
             </div>
-            {/* Desktop: table */}
             <table className="w-full hidden sm:table">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
@@ -227,13 +277,9 @@ export default function OrariPage() {
               <tbody>
                 {closures.map((c) => (
                   <tr key={c.id} className="border-b border-gray-100 last:border-0">
-                    <td className="px-6 py-3 text-sm text-gray-900">
-                      {c.start_date === c.end_date ? formatDate(c.start_date) : formatDate(c.start_date) + " -> " + formatDate(c.end_date)}
-                    </td>
+                    <td className="px-6 py-3 text-sm text-gray-900">{c.start_date === c.end_date ? formatDate(c.start_date) : formatDate(c.start_date) + " -> " + formatDate(c.end_date)}</td>
                     <td className="px-6 py-3 text-sm text-gray-600">{c.reason || "---"}</td>
-                    <td className="px-6 py-3 text-right">
-                      <button onClick={() => deleteClosure(c.id)} className="text-sm text-red-600 hover:text-red-800 font-medium">Rimuovi</button>
-                    </td>
+                    <td className="px-6 py-3 text-right"><button onClick={() => deleteClosure(c.id)} className="text-sm text-red-600 hover:text-red-800 font-medium">Rimuovi</button></td>
                   </tr>
                 ))}
               </tbody>

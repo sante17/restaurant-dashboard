@@ -11,9 +11,14 @@ interface Prenotazione {
 interface Tavolo { name: string; seats: number; }
 
 const HOURS = [
+  "07:30","08:00","08:30","09:00","09:30","10:00","10:30",
   "12:00","12:30","13:00","13:30","14:00","14:30",
   "19:00","19:30","20:00","20:30","21:00","21:30","22:00","22:30"
 ];
+
+const BREAKFAST_START = 0;
+const LUNCH_START = 7;
+const DINNER_START = 13;
 
 export default function PrenotazioniPage() {
   const [prenotazioni, setPrenotazioni] = useState<Prenotazione[]>([]);
@@ -145,6 +150,7 @@ export default function PrenotazioniPage() {
     return days[d.getDay()] + " " + d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
   }
 
+  const isToday = selectedDate === new Date().toISOString().split("T")[0];
   const dayCount = getDatePrenotazioni().length;
 
   if (loading) return <div className="flex items-center justify-center h-64"><p className="text-gray-500">Caricamento prenotazioni...</p></div>;
@@ -158,7 +164,6 @@ export default function PrenotazioniPage() {
         </div>
       )}
 
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Prenotazioni</h1>
         <p className="text-gray-500 mt-1 text-sm">{dayCount} prenotazioni per {formatDate(selectedDate)}</p>
@@ -178,18 +183,24 @@ export default function PrenotazioniPage() {
           <button onClick={() => setError("")} className="ml-2 font-medium">x</button>
         </div>
       )}
-
       {successMsg && <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">{successMsg}</div>}
 
       {/* Navigazione data */}
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
-        <button onClick={() => changeDate(-1)} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50">Ieri</button>
-        <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 flex-1 min-w-[140px]" />
-        <button onClick={() => changeDate(1)} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50">Domani</button>
-        <button onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])} className="px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-sm hover:bg-gray-200 font-medium">Oggi</button>
+      <div className="flex items-center gap-2 mb-6">
+        <button onClick={() => changeDate(-1)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 font-medium">
+          ←
+        </button>
+        <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 min-w-[140px]" />
+        <button onClick={() => changeDate(1)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 font-medium">
+          →
+        </button>
+        <button onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])}
+          className={"px-4 py-2 text-sm font-semibold rounded-lg transition-colors " + (isToday ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-700 hover:bg-blue-200")}>
+          Oggi
+        </button>
       </div>
 
-      {/* Form aggiungi/modifica */}
+      {/* Form */}
       {(showAddForm || editingId) && (
         <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 mb-6">
           <h2 className="text-sm font-semibold text-gray-900 mb-4">
@@ -247,7 +258,7 @@ export default function PrenotazioniPage() {
         </div>
       )}
 
-      {/* Dettaglio prenotazione */}
+      {/* Dettaglio */}
       {selectedBooking && !editingId && (
         <div className="bg-white rounded-xl border border-blue-200 p-4 sm:p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -269,14 +280,14 @@ export default function PrenotazioniPage() {
         </div>
       )}
 
-      {/* Griglia tavoli/orari */}
+      {/* Griglia */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
             <tr>
               <th className="sticky left-0 z-10 bg-gray-50 border-b border-r border-gray-200 px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase min-w-[80px] sm:min-w-[100px]">Tavolo</th>
               {HOURS.map((h, i) => (
-                <th key={h} className={"border-b border-gray-200 px-1 sm:px-2 py-3 text-center text-xs font-semibold text-gray-500 min-w-[60px] sm:min-w-[70px] " + (i === 6 ? "border-l-2 border-l-gray-300" : "")}>{h}</th>
+                <th key={h} className={"border-b border-gray-200 px-1 sm:px-2 py-3 text-center text-xs font-semibold text-gray-500 min-w-[60px] sm:min-w-[70px] " + (i === LUNCH_START ? "border-l-2 border-l-gray-300" : "") + (i === DINNER_START ? " border-l-2 border-l-gray-300" : "")}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -294,7 +305,7 @@ export default function PrenotazioniPage() {
                   if (bk && isS) {
                     const span = Math.min(getBookingSpan(bk), HOURS.length - i);
                     return (
-                      <td key={h} colSpan={span} className={"px-1 py-1 " + (i === 6 ? "border-l-2 border-l-gray-300" : "")}>
+                      <td key={h} colSpan={span} className={"px-1 py-1 " + (i === LUNCH_START ? "border-l-2 border-l-gray-300" : "") + (i === DINNER_START ? " border-l-2 border-l-gray-300" : "")}>
                         <button onClick={() => { setSelectedBooking(bk); setEditingId(null); setShowAddForm(false); }}
                           className={"w-full h-full px-1 sm:px-2 py-2 rounded-lg text-left transition-colors " + (selectedBooking?.ID === bk.ID ? "bg-blue-600 text-white" : "bg-blue-100 hover:bg-blue-200 text-blue-900")}>
                           <div className="text-xs font-semibold truncate">{bk.Nome}</div>
@@ -304,7 +315,7 @@ export default function PrenotazioniPage() {
                     );
                   }
                   return (
-                    <td key={h} className={"px-1 py-1 " + (i === 6 ? "border-l-2 border-l-gray-300" : "")}>
+                    <td key={h} className={"px-1 py-1 " + (i === LUNCH_START ? "border-l-2 border-l-gray-300" : "") + (i === DINNER_START ? " border-l-2 border-l-gray-300" : "")}>
                       <button onClick={() => openAddForm(tavolo.name, h)} className="w-full h-full min-h-[48px] rounded-lg border border-transparent hover:border-blue-300 hover:bg-blue-50 transition-colors" />
                     </td>
                   );
@@ -315,13 +326,12 @@ export default function PrenotazioniPage() {
         </table>
       </div>
 
-      {/* Lista prenotazioni */}
+      {/* Lista */}
       {getDatePrenotazioni().length > 0 && (
         <div className="mt-6 bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="p-4 border-b border-gray-200">
             <h2 className="text-sm font-semibold text-gray-900">Lista prenotazioni - {formatDate(selectedDate)}</h2>
           </div>
-          {/* Mobile: cards */}
           <div className="sm:hidden divide-y divide-gray-100">
             {getDatePrenotazioni().sort((a, b) => a.OraInizio.localeCompare(b.OraInizio)).map(pr => (
               <div key={pr.ID} className="p-4">
@@ -340,7 +350,6 @@ export default function PrenotazioniPage() {
               </div>
             ))}
           </div>
-          {/* Desktop: table */}
           <table className="w-full hidden sm:table">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
