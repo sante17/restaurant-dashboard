@@ -131,19 +131,19 @@ export default function ChiamatePage() {
       {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
 
       {/* Filtri tempo */}
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 mb-3">
         {(["all", "today", "week"] as const).map((f) => (
           <button key={f} onClick={() => setTimeFilter(f)}
-            className={"px-4 py-2 text-sm font-medium rounded-lg transition-colors " + (timeFilter === f ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50")}>
-            {f === "all" ? "Tutte" : f === "today" ? "Oggi" : "Questa settimana"}
+            className={"px-4 py-2 text-sm font-medium rounded-lg transition-colors text-center " + (timeFilter === f ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50")}>
+            {f === "all" ? "Tutte" : f === "today" ? "Oggi" : "Settimana"}
           </button>
         ))}
       </div>
 
       {/* Filtri esito */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-6">
         <button onClick={() => setOutcomeFilter("all")}
-          className={"px-3 py-1.5 text-xs font-medium rounded-lg transition-colors " + (outcomeFilter === "all" ? "bg-gray-800 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50")}>
+          className={"col-span-2 sm:col-span-1 px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg transition-colors text-center " + (outcomeFilter === "all" ? "bg-gray-800 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50")}>
           Tutti gli esiti
         </button>
         {(Object.keys(OUTCOME_CONFIG) as OutcomeFilter[]).map((key) => {
@@ -151,7 +151,7 @@ export default function ChiamatePage() {
           const count = outcomeCounts[key] || 0;
           return (
             <button key={key} onClick={() => setOutcomeFilter(outcomeFilter === key ? "all" : key)}
-              className={"px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 " + (outcomeFilter === key ? cfg.color + " ring-2 ring-offset-1 ring-gray-300" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50")}>
+              className={"px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 " + (outcomeFilter === key ? cfg.color + " ring-2 ring-offset-1 ring-gray-300" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50")}>
               <span>{cfg.icon}</span>
               <span>{cfg.label}</span>
               <span className="text-xs opacity-60">({count})</span>
