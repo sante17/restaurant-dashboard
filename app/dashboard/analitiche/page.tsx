@@ -224,7 +224,7 @@ export default function AnalitichePage() {
  <div key={i} className="flex items-center gap-3">
  <span className="text-xs text-[#a8a29e] w-8">{name}</span>
  <div className="flex-1 bg-[#f5f0eb] rounded-full h-5 overflow-hidden">
- <div className="bg-[#fff7ed]0 h-full rounded-full transition-all" style={{ width: (count / maxCount * 100) + "%" }} />
+ <div className="bg-[#c2410c] h-full rounded-full transition-all" style={{ width: (count / maxCount * 100) + "%" }} />
  </div>
  <span className="text-xs text-[#78716c] w-8 text-right">{count}</span>
  </div>
