@@ -72,14 +72,18 @@ export default function PrenotazioniPage() {
  function getDatePrenotazioni() { return prenotazioni.filter(p => p.Data === selectedDate && p.Stato === "Confermata"); }
 
  function getBookingForSlot(tn: string, h: string): Prenotazione | null {
- return getDatePrenotazioni().find(p => {
- if (p.Tavolo !== tn) return false;
- const [bH,bM] = p.OraInizio.split(":").map(Number);
- const [eH,eM] = p.OraFine.split(":").map(Number);
- const [sH,sM] = h.split(":").map(Number);
- return (sH*60+sM) >= (bH*60+bM) && (sH*60+sM) < (eH*60+eM);
- }) || null;
- }
+  const [sH, sM] = h.split(":").map(Number);
+  const slotMin = sH * 60 + sM;
+  return getDatePrenotazioni().find(p => {
+    if (p.Tavolo !== tn) return false;
+    const [bH, bM] = p.OraInizio.split(":").map(Number);
+    const [eH, eM] = p.OraFine.split(":").map(Number);
+    const bookStart = bH * 60 + bM;
+    const bookEnd = eH * 60 + eM;
+    const roundedStart = Math.floor(bookStart / 30) * 30;
+    return slotMin >= roundedStart && slotMin < bookEnd;
+  }) || null;
+}
 
  function isBookingStart(tn: string, h: string): boolean {
   const [sH, sM] = h.split(":").map(Number);
