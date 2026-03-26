@@ -81,13 +81,29 @@ export default function PrenotazioniPage() {
  }) || null;
  }
 
- function isBookingStart(tn: string, h: string): boolean { return getDatePrenotazioni().some(p => p.Tavolo === tn && p.OraInizio === h); }
+ function isBookingStart(tn: string, h: string): boolean {
+  const [sH, sM] = h.split(":").map(Number);
+  const slotMin = sH * 60 + sM;
+  return getDatePrenotazioni().some(p => {
+    if (p.Tavolo !== tn) return false;
+    const [bH, bM] = p.OraInizio.split(":").map(Number);
+    const bookStart = bH * 60 + bM;
+    // Trova lo slot che copre l'inizio della prenotazione (arrotonda per difetto allo slot da 30 min)
+    const roundedStart = Math.floor(bookStart / 30) * 30;
+    return slotMin === roundedStart;
+  });
+}
 
  function getBookingSpan(b: Prenotazione): number {
- const [bH,bM] = b.OraInizio.split(":").map(Number);
- const [eH,eM] = b.OraFine.split(":").map(Number);
- return ((eH*60+eM) - (bH*60+bM)) / 30;
- }
+  const [bH, bM] = b.OraInizio.split(":").map(Number);
+  const [eH, eM] = b.OraFine.split(":").map(Number);
+  const bookStart = bH * 60 + bM;
+  const bookEnd = eH * 60 + eM;
+  // Arrotonda inizio per difetto e fine per eccesso allo slot da 30 min
+  const roundedStart = Math.floor(bookStart / 30) * 30;
+  const roundedEnd = Math.ceil(bookEnd / 30) * 30;
+  return (roundedEnd - roundedStart) / 30;
+}
 
  async function handleAdd() {
  if (!form.nome.trim() || !form.data || !form.ora || !form.tavolo) { setError("Compila tutti i campi obbligatori"); return; }
