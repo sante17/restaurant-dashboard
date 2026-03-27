@@ -12,7 +12,6 @@ function generateSystemPrompt(data: any): string {
 
   const closedDayStr = closedDays.length > 0 ? closedDays.join(", ") : "NESSUNO";
 
-  // Build orari string per ogni servizio
   let orariStr = "";
   const openDays = hours.filter((h: any) => !h.is_closed);
   if (openDays.length > 0) {
@@ -41,13 +40,28 @@ function generateSystemPrompt(data: any): string {
     }
   }
 
-  const tavoliStr = tables
-    .filter((t: any) => t.is_active)
-    .map((t: any) => t.name + ": " + t.seats + " posti")
-    .join(", ");
+  // Tavoli interni sempre disponibili, esterni solo nel periodo dehors
+  const tavoliInterni = tables.filter((t: any) => t.is_active && t.location !== "esterno");
+  const tavoliEsterni = tables.filter((t: any) => t.is_active && t.location === "esterno");
+
+  const tavoliInterniStr = tavoliInterni.map((t: any) => t.name + ": " + t.seats + " posti (interno)").join(", ");
+  const tavoliEsterniStr = tavoliEsterni.map((t: any) => t.name + ": " + t.seats + " posti (esterno)").join(", ");
 
   const maxSeats = Math.max(...tables.filter((t: any) => t.is_active).map((t: any) => t.seats));
   const parkingStr = restaurant.parking_info || "Informazioni non disponibili";
+
+  // Periodo dehors
+  const outdoorFrom = restaurant.outdoor_from || null;
+  const outdoorTo = restaurant.outdoor_to || null;
+  let dehorsStr = "";
+  if (outdoorFrom && outdoorTo && tavoliEsterni.length > 0) {
+    dehorsStr = "DEHORS (tavoli esterni): disponibili dal " + outdoorFrom + " al " + outdoorTo + ".\n" +
+      "Se la data richiesta dal cliente cade in questo periodo, chiedi se preferisce sedersi all'interno o all'esterno.\n" +
+      "Passa la preferenza al tool check_disponibilita nel parametro 'posizione' (valori: 'interno' o 'esterno').\n" +
+      "Se la data NON cade in questo periodo, NON chiedere la preferenza — prenota solo tavoli interni.";
+  } else {
+    dehorsStr = "DEHORS: non configurato o non attivo. Prenota sempre tavoli interni.";
+  }
 
   let allergenStr = "";
   if (allergenInfo) {
@@ -148,8 +162,14 @@ function generateSystemPrompt(data: any): string {
     parkingStr,
     "",
     "TAVOLI DISPONIBILI:",
-    tavoliStr,
+    tavoliInterniStr || "Nessun tavolo interno configurato.",
+    tavoliEsterni.length > 0 ? "\nTAVOLI ESTERNI: " + tavoliEsterniStr : "",
     "Capienza massima per tavolo: " + maxSeats + " posti.",
+    "",
+    "===============================================",
+    "DEHORS E TAVOLI ESTERNI",
+    "===============================================",
+    dehorsStr,
     "",
     "===============================================",
     "MENU",
@@ -168,9 +188,10 @@ function generateSystemPrompt(data: any): string {
     "",
     "FLUSSO PER NUOVA PRENOTAZIONE:",
     "1. Chiedi: data, ora, numero di persone.",
-    "2. Chiama check_disponibilita con: data (YYYY-MM-DD), ora (HH:MM), persone.",
-    "3. Se disponibile: comunica tavolo, chiedi nome e telefono, conferma, chiama crea_prenotazione.",
-    "4. Se non disponibile: proponi orari alternativi.",
+    "2. Se la data cade nel periodo dehors (" + (outdoorFrom || "non configurato") + " - " + (outdoorTo || "non configurato") + "), chiedi: 'Preferisci sederti all'interno o all'esterno?'",
+    "3. Chiama check_disponibilita con: data (YYYY-MM-DD), ora (HH:MM), persone, posizione ('interno' o 'esterno').",
+    "4. Se disponibile: comunica tavolo, chiedi nome e telefono, conferma, chiama crea_prenotazione.",
+    "5. Se non disponibile: proponi orari alternativi.",
     "",
     "FLUSSO PER MODIFICA:",
     "1. Chiedi NOME e DATA della prenotazione.",
