@@ -9,7 +9,8 @@ interface Table {
 
 export default function TavoliPage() {
   const [tables, setTables] = useState<Table[]>([]);
-  const [outdoorEnabled, setOutdoorEnabled] = useState(false);
+  const [outdoorFrom, setOutdoorFrom] = useState("");
+  const [outdoorTo, setOutdoorTo] = useState("");
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
   const [newSeats, setNewSeats] = useState(4);
@@ -47,10 +48,11 @@ export default function TavoliPage() {
     if (!rid) return;
     const [tablesRes, restaurantRes] = await Promise.all([
       supabase.from("tables").select("*").eq("restaurant_id", rid).order("name"),
-      supabase.from("restaurants").select("outdoor_enabled").eq("id", rid).single(),
+      supabase.from("restaurants").select("outdoor_from,outdoor_to").eq("id", rid).single(),
     ]);
     setTables((tablesRes.data || []).map(t => ({ ...t, location: t.location || "interno" })));
-    setOutdoorEnabled(restaurantRes.data?.outdoor_enabled || false);
+    setOutdoorFrom(restaurantRes.data?.outdoor_from || "");
+    setOutdoorTo(restaurantRes.data?.outdoor_to || "");
     setLoading(false);
   }
 
@@ -59,16 +61,24 @@ export default function TavoliPage() {
     setTimeout(() => setSaveResult(null), 4000);
   }
 
-  async function toggleOutdoor() {
+  async function savePeriodoDehors() {
     const rid = await getRestaurantId();
     if (!rid) return;
-    const newVal = !outdoorEnabled;
-    const { error } = await supabase.from("restaurants").update({ outdoor_enabled: newVal }).eq("id", rid);
+    if (outdoorFrom && outdoorTo && outdoorFrom > outdoorTo) {
+      showResult(false, "La data di inizio deve essere precedente alla data di fine.");
+      return;
+    }
+    const { error } = await supabase.from("restaurants").update({
+      outdoor_from: outdoorFrom || null,
+      outdoor_to: outdoorTo || null,
+    }).eq("id", rid);
     if (error) { showResult(false, "Errore: " + error.message); return; }
-    setOutdoorEnabled(newVal);
     await syncAll();
-    showResult(true, newVal ? "Tavoli esterni attivati!" : "Tavoli esterni disattivati.");
+    showResult(true, outdoorFrom && outdoorTo ? "Periodo dehors salvato!" : "Dehors disattivato.");
   }
+
+  const oggi = new Date().toISOString().split("T")[0];
+  const dehorsAttivo = outdoorFrom && outdoorTo && oggi >= outdoorFrom && oggi <= outdoorTo;
 
   async function addTable() {
     if (!newName.trim()) return;
@@ -80,8 +90,7 @@ export default function TavoliPage() {
     });
     if (error) { showResult(false, "Errore: " + error.message); return; }
     setNewName(""); setNewSeats(4); setNewLocation("interno");
-    await loadTables();
-    await syncAll();
+    await loadTables(); await syncAll();
     showResult(true, "Tavolo aggiunto!");
   }
 
@@ -91,22 +100,19 @@ export default function TavoliPage() {
     }).eq("id", id);
     if (error) { showResult(false, "Errore: " + error.message); return; }
     setEditingId(null);
-    await loadTables();
-    await syncAll();
+    await loadTables(); await syncAll();
     showResult(true, "Salvato!");
   }
 
   async function toggleActive(id: string, currentActive: boolean) {
     await supabase.from("tables").update({ is_active: !currentActive }).eq("id", id);
-    await loadTables();
-    await syncAll();
+    await loadTables(); await syncAll();
   }
 
   async function deleteTable(id: string) {
     if (!confirm("Sei sicuro di voler eliminare questo tavolo?")) return;
     await supabase.from("tables").delete().eq("id", id);
-    await loadTables();
-    await syncAll();
+    await loadTables(); await syncAll();
     showResult(true, "Tavolo eliminato.");
   }
 
@@ -117,6 +123,12 @@ export default function TavoliPage() {
         {isEsterno ? "Esterno" : "Interno"}
       </span>
     );
+  }
+
+  function formatDateIT(d: string) {
+    if (!d) return "";
+    const dt = new Date(d + "T00:00:00");
+    return dt.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><p className="text-[#a8a29e]">Caricamento...</p></div>;
@@ -135,22 +147,49 @@ export default function TavoliPage() {
         )}
       </div>
 
-      {/* Banner outdoor */}
-      <div className={"flex items-center justify-between p-4 rounded-xl border mb-6 " + (outdoorEnabled ? "bg-sky-50 border-sky-200" : "bg-[#faf7f5] border-[#e8e0d8]")}>
-        <div>
-          <p className={"text-sm font-semibold " + (outdoorEnabled ? "text-sky-700" : "text-[#78716c]")}>
-            Tavoli esterni
-          </p>
-          <p className={"text-xs mt-0.5 " + (outdoorEnabled ? "text-sky-600" : "text-[#a8a29e]")}>
-            {outdoorEnabled ? "Attivi — i clienti possono prenotare al coperto o all'aperto" : "Disattivati — le prenotazioni vanno solo ai tavoli interni"}
-          </p>
+      {/* Banner periodo dehors */}
+      <div className={"rounded-xl border p-4 mb-6 " + (dehorsAttivo ? "bg-sky-50 border-sky-200" : "bg-[#faf7f5] border-[#e8e0d8]")}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className={"text-sm font-semibold " + (dehorsAttivo ? "text-sky-700" : "text-[#78716c]")}>
+              Tavoli esterni (dehors)
+            </p>
+            <p className={"text-xs mt-0.5 " + (dehorsAttivo ? "text-sky-600" : "text-[#a8a29e]")}>
+              {dehorsAttivo
+                ? "Attivi ora — prenotabili fino al " + formatDateIT(outdoorTo)
+                : outdoorFrom && outdoorTo
+                ? "Periodo impostato: " + formatDateIT(outdoorFrom) + " → " + formatDateIT(outdoorTo) + " (non ancora attivo)"
+                : "Nessun periodo impostato — i tavoli esterni non sono prenotabili"}
+            </p>
+          </div>
+          {dehorsAttivo && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">
+              Attivo
+            </span>
+          )}
         </div>
-        <button
-          onClick={toggleOutdoor}
-          className={"relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none " + (outdoorEnabled ? "bg-sky-500" : "bg-[#d6cfc7]")}
-        >
-          <span className={"inline-block h-4 w-4 transform rounded-full bg-white transition-transform " + (outdoorEnabled ? "translate-x-6" : "translate-x-1")} />
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 items-end">
+          <div>
+            <label className="block text-xs text-[#78716c] mb-1">Dal</label>
+            <input type="date" value={outdoorFrom} onChange={(e) => setOutdoorFrom(e.target.value)}
+              className="px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs text-[#78716c] mb-1">Al</label>
+            <input type="date" value={outdoorTo} onChange={(e) => setOutdoorTo(e.target.value)}
+              className="px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none" />
+          </div>
+          <button onClick={savePeriodoDehors}
+            className="bg-[#c2410c] hover:bg-[#9a3412] px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors">
+            Salva periodo
+          </button>
+          {(outdoorFrom || outdoorTo) && (
+            <button onClick={() => { setOutdoorFrom(""); setOutdoorTo(""); }}
+              className="px-4 py-2 text-[#78716c] text-sm rounded-lg hover:bg-[#f5f0eb] border border-[#e8e0d8]">
+              Rimuovi
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Aggiungi tavolo */}
@@ -159,21 +198,26 @@ export default function TavoliPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <label className="block text-sm text-[#78716c] mb-1">Nome</label>
-            <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="es. Tavolo7" className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none" />
+            <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="es. Tavolo7"
+              className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none" />
           </div>
           <div className="w-full sm:w-28">
             <label className="block text-sm text-[#78716c] mb-1">Posti</label>
-            <input type="number" value={newSeats} onChange={(e) => setNewSeats(parseInt(e.target.value) || 1)} min={1} max={20} className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none" />
+            <input type="number" value={newSeats} onChange={(e) => setNewSeats(parseInt(e.target.value) || 1)} min={1} max={20}
+              className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none" />
           </div>
           <div className="w-full sm:w-36">
             <label className="block text-sm text-[#78716c] mb-1">Posizione</label>
-            <select value={newLocation} onChange={(e) => setNewLocation(e.target.value as "interno" | "esterno")} className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none bg-white">
+            <select value={newLocation} onChange={(e) => setNewLocation(e.target.value as "interno" | "esterno")}
+              className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none bg-white">
               <option value="interno">Interno</option>
               <option value="esterno">Esterno</option>
             </select>
           </div>
           <div className="flex items-end">
-            <button onClick={addTable} className="bg-[#c2410c] hover:bg-[#9a3412] w-full sm:w-auto px-5 py-2 text-white text-sm font-medium rounded-lg transition-colors">Aggiungi</button>
+            <button onClick={addTable} className="bg-[#c2410c] hover:bg-[#9a3412] w-full sm:w-auto px-5 py-2 text-white text-sm font-medium rounded-lg transition-colors">
+              Aggiungi
+            </button>
           </div>
         </div>
       </div>
