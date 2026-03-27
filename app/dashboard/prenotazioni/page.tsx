@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 interface Prenotazione {
   ID: string; Data: string; OraInizio: string; OraFine: string;
   Tavolo: string; Nome: string; Telefono: string; Email: string;
-  Persone: string; Stato: string;
+  Persone: string; Stato: string; Presentato?: string;
 }
 
 interface Tavolo { name: string; seats: number; location?: string; }
@@ -40,6 +40,7 @@ export default function PrenotazioniPage() {
   const [form, setForm] = useState({ data: "", ora: "", tavolo: "", nome: "", telefono: "", email: "", persone: "2" });
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [presentatoStates, setPresentatoStates] = useState<Record<string, string>>({});
 
   const loadData = useCallback(async () => {
     try {
@@ -51,6 +52,12 @@ export default function PrenotazioniPage() {
       const cc = (data.prenotazioni || []).filter((p: Prenotazione) => p.Stato === "Confermata").length;
       lastKnownCount.current = cc;
       setNewBookingsCount(0);
+      // Inizializza presentato da Google Sheet
+      const states: Record<string, string> = {};
+      for (const p of data.prenotazioni || []) {
+        if (p.ID) states[p.ID] = p.Presentato || "Sì";
+      }
+      setPresentatoStates(states);
     } catch { setError("Errore nel caricamento"); }
   }, []);
 
@@ -102,6 +109,19 @@ export default function PrenotazioniPage() {
   function isOrarioValido(ora: string): boolean {
     const [, m] = ora.split(":").map(Number);
     return m === 0 || m === 15 || m === 30 || m === 45;
+  }
+
+  async function segnaPresenza(id: string, nuovoValore: "Sì" | "No") {
+    setPresentatoStates(prev => ({ ...prev, [id]: nuovoValore }));
+    try {
+      await fetch("/api/prenotazioni", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action: "presentato", updates: { valore: nuovoValore } }),
+      });
+    } catch {
+      setPresentatoStates(prev => ({ ...prev, [id]: nuovoValore === "Sì" ? "No" : "Sì" }));
+    }
   }
 
   function getBookingForSlot(tn: string, h: string): Prenotazione | null {
@@ -312,7 +332,6 @@ export default function PrenotazioniPage() {
             </div>
           </div>
 
-          {/* Avviso sovrapposizione preventivo */}
           {form.tavolo && form.data && form.ora && hasSovrapposizione(form.tavolo, form.data, form.ora, editingId || undefined) && (
             <div className="mb-3 p-3 bg-[#fef2f2] border border-red-200 rounded-lg text-sm text-red-700">
               ⚠️ {form.tavolo} è già occupato dalle {form.ora} alle {calcolaOraFine(form.ora)}. Cambia tavolo o orario.
@@ -335,7 +354,7 @@ export default function PrenotazioniPage() {
         </div>
       )}
 
-      {/* Dettaglio */}
+      {/* Dettaglio prenotazione */}
       {selectedBooking && !editingId && (
         <div className="bg-white rounded-xl border border-[#c2410c]/20 p-4 sm:p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -350,6 +369,27 @@ export default function PrenotazioniPage() {
             <div><span className="text-[#a8a29e]">Telefono:</span> <span className="font-medium text-[#1c1917]">{selectedBooking.Telefono || "---"}</span></div>
             <div><span className="text-[#a8a29e]">Email:</span> <span className="font-medium text-[#1c1917]">{selectedBooking.Email || "---"}</span></div>
           </div>
+
+          {/* Toggle presentato */}
+          <div className="flex items-center justify-between py-3 mb-3 border-t border-b border-[#f5f0eb]">
+            <span className="text-sm text-[#78716c]">Cliente presentato</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-medium" style={{ color: (presentatoStates[selectedBooking.ID] ?? "Sì") === "Sì" ? "#15803d" : "#dc2626" }}>
+                {(presentatoStates[selectedBooking.ID] ?? "Sì") === "Sì" ? "Sì" : "No"}
+              </span>
+              <button
+                onClick={() => {
+                  const current = presentatoStates[selectedBooking.ID] ?? "Sì";
+                  segnaPresenza(selectedBooking.ID, current === "Sì" ? "No" : "Sì");
+                }}
+                className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
+                style={{ background: (presentatoStates[selectedBooking.ID] ?? "Sì") === "Sì" ? "#22c55e" : "#f87171" }}
+              >
+                <span className={"inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform " + ((presentatoStates[selectedBooking.ID] ?? "Sì") === "Sì" ? "translate-x-4" : "translate-x-1")} />
+              </button>
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <button onClick={() => openEditForm(selectedBooking)} className="bg-[#c2410c] hover:bg-[#9a3412] flex-1 sm:flex-none px-3 py-1.5 text-white text-xs rounded-lg">Modifica</button>
             <button onClick={() => handleCancel(selectedBooking.ID)} className="flex-1 sm:flex-none px-3 py-1.5 text-red-600 text-xs rounded-lg hover:bg-[#fef2f2] border border-red-200">Cancella</button>
@@ -362,7 +402,7 @@ export default function PrenotazioniPage() {
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 bg-[#faf7f5] border-b border-r border-[#e8e0d8] px-3 sm:px-4 py-3 text-left text-xs font-semibold text-[#a8a29e] uppercase min-w-[80px] sm:min-w-[100px]">Tavolo</th>
+              <th className="sticky left-0 z-10 bg-[#faf7f5] border-b border-r border-[#e8e0d8] px-3 sm:px-4 py-3 text-left text-xs font-semibold text-[#a8a29e] uppercase min-w-[80px] sm:min-w-[110px]">Tavolo</th>
               {HOURS.map((h, i) => (
                 <th key={h} className={"border-b border-[#e8e0d8] px-1 sm:px-2 py-3 text-center text-xs font-semibold text-[#a8a29e] min-w-[60px] sm:min-w-[70px] " + (i === LUNCH_START ? "border-l-2 border-l-gray-300" : "") + (i === DINNER_START ? " border-l-2 border-l-gray-300" : "")}>{h}</th>
               ))}
@@ -372,14 +412,12 @@ export default function PrenotazioniPage() {
             {tavoli.map(tavolo => (
               <tr key={tavolo.name} className="border-b border-[#f0ebe5] last:border-0">
                 <td className="sticky left-0 z-10 bg-white border-r border-[#e8e0d8] px-3 sm:px-4 py-3">
-  <div className="text-xs sm:text-sm font-medium text-[#1c1917]">{tavolo.name}</div>
-  <div className="text-xs text-[#d6cfc7]">{tavolo.seats}p</div>
-  <div className="mt-0.5">
-    <span className={"text-xs px-1.5 py-0.5 rounded-full font-medium " + (tavolo.location === "esterno" ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700")}>
-      {tavolo.location === "esterno" ? "Est." : "Int."}
-    </span>
-  </div>
-</td>
+                  <div className="text-xs sm:text-sm font-medium text-[#1c1917]">{tavolo.name}</div>
+                  <div className="text-xs text-[#d6cfc7]">{tavolo.seats}p</div>
+                  <span className={"inline-block mt-0.5 text-xs px-1.5 py-0.5 rounded-full font-medium " + (tavolo.location === "esterno" ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700")}>
+                    {tavolo.location === "esterno" ? "Est." : "Int."}
+                  </span>
+                </td>
                 {HOURS.map((h, i) => {
                   const bk = getBookingForSlot(tavolo.name, h);
                   const isS = bk && isBookingStart(tavolo.name, h);
@@ -441,24 +479,37 @@ export default function PrenotazioniPage() {
                 <th className="text-left text-xs font-semibold text-[#a8a29e] uppercase px-4 py-2">Tavolo</th>
                 <th className="text-left text-xs font-semibold text-[#a8a29e] uppercase px-4 py-2">Persone</th>
                 <th className="text-left text-xs font-semibold text-[#a8a29e] uppercase px-4 py-2">Telefono</th>
+                <th className="text-left text-xs font-semibold text-[#a8a29e] uppercase px-4 py-2">Presente</th>
                 <th className="text-right text-xs font-semibold text-[#a8a29e] uppercase px-4 py-2">Azioni</th>
               </tr>
             </thead>
             <tbody>
-              {getDatePrenotazioni().sort((a, b) => a.OraInizio.localeCompare(b.OraInizio)).map(pr => (
-                <tr key={pr.ID} className="border-b border-[#f0ebe5] last:border-0">
-                  <td className="px-4 py-2 text-xs text-[#a8a29e] font-mono">{pr.ID}</td>
-                  <td className="px-4 py-2 text-sm font-medium text-[#1c1917]">{pr.Nome}</td>
-                  <td className="px-4 py-2 text-sm text-[#78716c]">{pr.OraInizio} - {pr.OraFine}</td>
-                  <td className="px-4 py-2 text-sm text-[#78716c]">{pr.Tavolo}</td>
-                  <td className="px-4 py-2 text-sm text-[#78716c]">{pr.Persone}</td>
-                  <td className="px-4 py-2 text-sm text-[#78716c]">{pr.Telefono || "---"}</td>
-                  <td className="px-4 py-2 text-right space-x-2">
-                    <button onClick={() => openEditForm(pr)} className="text-xs text-[#c2410c] hover:text-[#9a3412] font-medium">Modifica</button>
-                    <button onClick={() => handleCancel(pr.ID)} className="text-xs text-red-600 hover:text-red-800 font-medium">Cancella</button>
-                  </td>
-                </tr>
-              ))}
+              {getDatePrenotazioni().sort((a, b) => a.OraInizio.localeCompare(b.OraInizio)).map(pr => {
+                const stato = presentatoStates[pr.ID] ?? "Sì";
+                return (
+                  <tr key={pr.ID} className="border-b border-[#f0ebe5] last:border-0">
+                    <td className="px-4 py-2 text-xs text-[#a8a29e] font-mono">{pr.ID}</td>
+                    <td className="px-4 py-2 text-sm font-medium text-[#1c1917]">{pr.Nome}</td>
+                    <td className="px-4 py-2 text-sm text-[#78716c]">{pr.OraInizio} - {pr.OraFine}</td>
+                    <td className="px-4 py-2 text-sm text-[#78716c]">{pr.Tavolo}</td>
+                    <td className="px-4 py-2 text-sm text-[#78716c]">{pr.Persone}</td>
+                    <td className="px-4 py-2 text-sm text-[#78716c]">{pr.Telefono || "---"}</td>
+                    <td className="px-4 py-2">
+                      <button
+                        onClick={() => segnaPresenza(pr.ID, stato === "Sì" ? "No" : "Sì")}
+                        className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
+                        style={{ background: stato === "Sì" ? "#22c55e" : "#f87171" }}
+                      >
+                        <span className={"inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform " + (stato === "Sì" ? "translate-x-4" : "translate-x-1")} />
+                      </button>
+                    </td>
+                    <td className="px-4 py-2 text-right space-x-2">
+                      <button onClick={() => openEditForm(pr)} className="text-xs text-[#c2410c] hover:text-[#9a3412] font-medium">Modifica</button>
+                      <button onClick={() => handleCancel(pr.ID)} className="text-xs text-red-600 hover:text-red-800 font-medium">Cancella</button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
