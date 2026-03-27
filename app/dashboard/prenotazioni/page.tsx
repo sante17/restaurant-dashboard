@@ -372,9 +372,14 @@ export default function PrenotazioniPage() {
             {tavoli.map(tavolo => (
               <tr key={tavolo.name} className="border-b border-[#f0ebe5] last:border-0">
                 <td className="sticky left-0 z-10 bg-white border-r border-[#e8e0d8] px-3 sm:px-4 py-3">
-                  <div className="text-xs sm:text-sm font-medium text-[#1c1917]">{tavolo.name}</div>
-                  <div className="text-xs text-[#d6cfc7]">{tavolo.seats}p</div>
-                </td>
+  <div className="text-xs sm:text-sm font-medium text-[#1c1917]">{tavolo.name}</div>
+  <div className="text-xs text-[#d6cfc7]">{tavolo.seats}p</div>
+  <div className="mt-0.5">
+    <span className={"text-xs px-1.5 py-0.5 rounded-full font-medium " + (tavolo.location === "esterno" ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700")}>
+      {tavolo.location === "esterno" ? "Est." : "Int."}
+    </span>
+  </div>
+</td>
                 {HOURS.map((h, i) => {
                   const bk = getBookingForSlot(tavolo.name, h);
                   const isS = bk && isBookingStart(tavolo.name, h);

@@ -134,6 +134,16 @@ export async function PUT(request: NextRequest) {
 
     if (action === "cancella") {
       rows[rowIndex][9] = "Cancellata";
+    } else if (action === "presentato") {
+      while (rows[rowIndex].length < 12) rows[rowIndex].push("");
+      rows[rowIndex][11] = updates.valore; // colonna L = Presentato
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: data.sheetId,
+        range: `Prenotazioni!A${rowIndex + 1}:M${rowIndex + 1}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values: [rows[rowIndex]] },
+      });
+      return NextResponse.json({ success: true });
     } else if (action === "modifica") {
       if (updates.data) rows[rowIndex][1] = updates.data;
       if (updates.ora) {
