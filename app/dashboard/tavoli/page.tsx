@@ -9,6 +9,7 @@ interface Table {
 
 export default function TavoliPage() {
   const [tables, setTables] = useState<Table[]>([]);
+  const [outdoorEnabled, setOutdoorEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
   const [newSeats, setNewSeats] = useState(4);
@@ -44,14 +45,29 @@ export default function TavoliPage() {
   async function loadTables() {
     const rid = await getRestaurantId();
     if (!rid) return;
-    const { data } = await supabase.from("tables").select("*").eq("restaurant_id", rid).order("name");
-    setTables((data || []).map(t => ({ ...t, location: t.location || "interno" })));
+    const [tablesRes, restaurantRes] = await Promise.all([
+      supabase.from("tables").select("*").eq("restaurant_id", rid).order("name"),
+      supabase.from("restaurants").select("outdoor_enabled").eq("id", rid).single(),
+    ]);
+    setTables((tablesRes.data || []).map(t => ({ ...t, location: t.location || "interno" })));
+    setOutdoorEnabled(restaurantRes.data?.outdoor_enabled || false);
     setLoading(false);
   }
 
   function showResult(ok: boolean, msg: string) {
     setSaveResult({ ok, msg });
     setTimeout(() => setSaveResult(null), 4000);
+  }
+
+  async function toggleOutdoor() {
+    const rid = await getRestaurantId();
+    if (!rid) return;
+    const newVal = !outdoorEnabled;
+    const { error } = await supabase.from("restaurants").update({ outdoor_enabled: newVal }).eq("id", rid);
+    if (error) { showResult(false, "Errore: " + error.message); return; }
+    setOutdoorEnabled(newVal);
+    await syncAll();
+    showResult(true, newVal ? "Tavoli esterni attivati!" : "Tavoli esterni disattivati.");
   }
 
   async function addTable() {
@@ -107,7 +123,7 @@ export default function TavoliPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1c1917]">Gestione Tavoli</h1>
           <p className="text-[#a8a29e] mt-1 text-sm">Aggiungi, modifica o rimuovi i tavoli del ristorante</p>
@@ -117,6 +133,24 @@ export default function TavoliPage() {
             {saveResult.msg}
           </span>
         )}
+      </div>
+
+      {/* Banner outdoor */}
+      <div className={"flex items-center justify-between p-4 rounded-xl border mb-6 " + (outdoorEnabled ? "bg-sky-50 border-sky-200" : "bg-[#faf7f5] border-[#e8e0d8]")}>
+        <div>
+          <p className={"text-sm font-semibold " + (outdoorEnabled ? "text-sky-700" : "text-[#78716c]")}>
+            Tavoli esterni
+          </p>
+          <p className={"text-xs mt-0.5 " + (outdoorEnabled ? "text-sky-600" : "text-[#a8a29e]")}>
+            {outdoorEnabled ? "Attivi — i clienti possono prenotare al coperto o all'aperto" : "Disattivati — le prenotazioni vanno solo ai tavoli interni"}
+          </p>
+        </div>
+        <button
+          onClick={toggleOutdoor}
+          className={"relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none " + (outdoorEnabled ? "bg-sky-500" : "bg-[#d6cfc7]")}
+        >
+          <span className={"inline-block h-4 w-4 transform rounded-full bg-white transition-transform " + (outdoorEnabled ? "translate-x-6" : "translate-x-1")} />
+        </button>
       </div>
 
       {/* Aggiungi tavolo */}
