@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     // Prendi anche i tavoli da Supabase
     const { data: tavoli } = await supabase
       .from("tables")
-      .select("name, seats")
+      .select("name, seats, location")  // aggiunto location
       .eq("restaurant_id", data.restaurantId)
       .eq("is_active", true)
       .order("name");

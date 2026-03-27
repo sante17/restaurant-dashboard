@@ -8,7 +8,7 @@ interface Prenotazione {
   Persone: string; Stato: string;
 }
 
-interface Tavolo { name: string; seats: number; }
+interface Tavolo { name: string; seats: number; location?: string; }
 
 const HOURS = [
   "07:30","08:00","08:30","09:00","09:30","10:00","10:30",
@@ -271,7 +271,11 @@ export default function PrenotazioniPage() {
               <label className="block text-xs text-[#78716c] mb-1">Tavolo</label>
               <select value={form.tavolo} onChange={e => setForm({ ...form, tavolo: e.target.value })} className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917]">
                 <option value="">Seleziona...</option>
-                {tavoli.map(t => <option key={t.name} value={t.name}>{t.name} ({t.seats}p)</option>)}
+                {tavoli.map(t => (
+  <option key={t.name} value={t.name}>
+    {t.name} ({t.seats}p · {t.location === "esterno" ? "Esterno" : "Interno"})
+  </option>
+))}
               </select>
             </div>
             <div>
