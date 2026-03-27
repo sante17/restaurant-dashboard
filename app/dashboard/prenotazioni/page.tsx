@@ -16,6 +16,12 @@ const HOURS = [
   "19:00","19:30","20:00","20:30","21:00","21:30","22:00","22:30"
 ];
 
+const FORM_HOURS = [
+  "07:30","07:45","08:00","08:15","08:30","08:45","09:00","09:15","09:30","09:45","10:00","10:15","10:30",
+  "12:00","12:15","12:30","12:45","13:00","13:15","13:30","13:45","14:00","14:15","14:30",
+  "19:00","19:15","19:30","19:45","20:00","20:15","20:30","20:45","21:00","21:15","21:30","21:45","22:00","22:15","22:30"
+];
+
 const LUNCH_START = 7;
 const DINNER_START = 13;
 
@@ -74,18 +80,15 @@ export default function PrenotazioniPage() {
     const [h, m] = ora.split(":").map(Number);
     const newStart = h * 60 + m;
     const newEnd = newStart + 120;
-
     return prenotazioni.some(p => {
       if (p.Tavolo !== tavolo) return false;
       if (p.Data !== data) return false;
       if (p.Stato !== "Confermata") return false;
       if (escludiId && p.ID === escludiId) return false;
-
       const [pH, pM] = p.OraInizio.split(":").map(Number);
       const [eH, eM] = p.OraFine.split(":").map(Number);
       const existStart = pH * 60 + pM;
       const existEnd = eH * 60 + eM;
-
       return newStart < existEnd && newEnd > existStart;
     });
   }
@@ -94,6 +97,11 @@ export default function PrenotazioniPage() {
     const [h, m] = ora.split(":").map(Number);
     const fine = h * 60 + m + 120;
     return String(Math.floor(fine / 60)).padStart(2, "0") + ":" + String(fine % 60).padStart(2, "0");
+  }
+
+  function isOrarioValido(ora: string): boolean {
+    const [, m] = ora.split(":").map(Number);
+    return m === 0 || m === 15 || m === 30 || m === 45;
   }
 
   function getBookingForSlot(tn: string, h: string): Prenotazione | null {
@@ -136,6 +144,10 @@ export default function PrenotazioniPage() {
     if (!form.nome.trim() || !form.data || !form.ora || !form.tavolo) {
       setError("Compila tutti i campi obbligatori"); return;
     }
+    if (!isOrarioValido(form.ora)) {
+      setError("❌ Orario non valido. Scegli un orario a ore piene, e un quarto, e mezza o e tre quarti.");
+      return;
+    }
     if (hasSovrapposizione(form.tavolo, form.data, form.ora)) {
       setError("❌ " + form.tavolo + " è già occupato dalle " + form.ora + " alle " + calcolaOraFine(form.ora) + ". Scegli un altro tavolo o un altro orario.");
       return;
@@ -153,6 +165,10 @@ export default function PrenotazioniPage() {
 
   async function handleUpdate() {
     if (!editingId) return;
+    if (!isOrarioValido(form.ora)) {
+      setError("❌ Orario non valido. Scegli un orario a ore piene, e un quarto, e mezza o e tre quarti.");
+      return;
+    }
     if (hasSovrapposizione(form.tavolo, form.data, form.ora, editingId)) {
       setError("❌ " + form.tavolo + " è già occupato in quella fascia oraria. Scegli un altro tavolo o orario.");
       return;
@@ -264,7 +280,7 @@ export default function PrenotazioniPage() {
               <label className="block text-xs text-[#78716c] mb-1">Ora</label>
               <select value={form.ora} onChange={e => setForm({ ...form, ora: e.target.value })} className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917]">
                 <option value="">Seleziona...</option>
-                {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                {FORM_HOURS.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
             <div>
@@ -272,10 +288,10 @@ export default function PrenotazioniPage() {
               <select value={form.tavolo} onChange={e => setForm({ ...form, tavolo: e.target.value })} className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917]">
                 <option value="">Seleziona...</option>
                 {tavoli.map(t => (
-  <option key={t.name} value={t.name}>
-    {t.name} ({t.seats}p · {t.location === "esterno" ? "Esterno" : "Interno"})
-  </option>
-))}
+                  <option key={t.name} value={t.name}>
+                    {t.name} ({t.seats}p · {t.location === "esterno" ? "Esterno" : "Interno"})
+                  </option>
+                ))}
               </select>
             </div>
             <div>
