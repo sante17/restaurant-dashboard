@@ -152,7 +152,7 @@ export default function TavoliPage() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className={"text-sm font-semibold " + (dehorsAttivo ? "text-sky-700" : "text-[#78716c]")}>
-              Tavoli esterni (dehors)
+              Tavoli esterni
             </p>
             <p className={"text-xs mt-0.5 " + (dehorsAttivo ? "text-sky-600" : "text-[#a8a29e]")}>
               {dehorsAttivo
