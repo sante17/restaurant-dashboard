@@ -44,19 +44,21 @@ export async function POST() {
       (s) => s.properties?.title === "Configurazione"
     );
     if (!tabEsiste) {
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: sheetId,
-        requestBody: {
-          requests: [{ addSheet: { properties: { title: "Configurazione" } } }],
-        },
-      });
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: "Configurazione!A1:B1",
-        valueInputOption: "USER_ENTERED",
-        requestBody: { values: [["Chiave", "Valore"]] },
-      });
-    }
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: sheetId,
+    requestBody: {
+      requests: [{ addSheet: { properties: { title: "Configurazione" } } }],
+    },
+  });
+}
+
+// Scrivi sempre gli header (idempotente)
+await sheets.spreadsheets.values.update({
+  spreadsheetId: sheetId,
+  range: "Configurazione!A1:B1",
+  valueInputOption: "USER_ENTERED",
+  requestBody: { values: [["Chiave", "Valore"]] },
+});
 
     // Scrivi outdoor_from e outdoor_to
     await sheets.spreadsheets.values.clear({
