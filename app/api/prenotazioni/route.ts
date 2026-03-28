@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const sheets = await getSheetClient();
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: data.sheetId,
-      range: "Prenotazioni!A:J",
+      range: "Prenotazioni!A:M",
     });
 
     const rows = response.data.values || [];

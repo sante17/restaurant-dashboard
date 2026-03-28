@@ -29,47 +29,56 @@ export async function POST() {
 
     const { data: restaurant } = await supabase
       .from("restaurants")
-      .select("google_sheet_id")
+      .select("google_sheet_id, outdoor_from, outdoor_to")
       .eq("id", userData.restaurant_id)
       .single();
     if (!restaurant?.google_sheet_id)
       return NextResponse.json({ error: "Google Sheet non configurato" }, { status: 400 });
 
-    const { data: tavoli } = await supabase
-      .from("tables")
-      .select("name, seats, is_outdoor")
-      .eq("restaurant_id", userData.restaurant_id)
-      .eq("is_active", true)
-      .order("name");
-
-    if (!tavoli) return NextResponse.json({ error: "Nessun tavolo trovato" }, { status: 400 });
-
     const sheets = await getSheetClient();
     const sheetId = restaurant.google_sheet_id;
 
-    // Pulisci A:C (header riga 1 esclusa)
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId: sheetId,
-      range: "Tavoli!A2:C100",
-    });
-
-    if (tavoli.length > 0) {
-      const rows = tavoli.map((t) => [
-        t.name,
-        t.seats,
-        t.is_outdoor ? "esterno" : "interno",
-      ]);
+    // Verifica/crea tab "Configurazione"
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+    const tabEsiste = spreadsheet.data.sheets?.find(
+      (s) => s.properties?.title === "Configurazione"
+    );
+    if (!tabEsiste) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: "Configurazione" } } }],
+        },
+      });
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: `Tavoli!A2:C${rows.length + 1}`,
+        range: "Configurazione!A1:B1",
         valueInputOption: "USER_ENTERED",
-        requestBody: { values: rows },
+        requestBody: { values: [["Chiave", "Valore"]] },
       });
     }
 
-    return NextResponse.json({ success: true, count: tavoli.length });
+    // Scrivi outdoor_from e outdoor_to
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: sheetId,
+      range: "Configurazione!A2:B10",
+    });
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: "Configurazione!A2:B3",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [
+          ["outdoor_from", restaurant.outdoor_from || ""],
+          ["outdoor_to", restaurant.outdoor_to || ""],
+        ],
+      },
+    });
+
+    return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Sync tavoli error:", error);
+    console.error("Sync configurazione error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
