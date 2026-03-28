@@ -23,7 +23,6 @@ export default function TavoliPage() {
   const [editIsOutdoor, setEditIsOutdoor] = useState(false);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  // Periodo dehors
   const [outdoorFrom, setOutdoorFrom] = useState("");
   const [outdoorTo, setOutdoorTo] = useState("");
   const [savingPeriod, setSavingPeriod] = useState(false);
@@ -69,18 +68,18 @@ export default function TavoliPage() {
   }
 
   async function savePeriod() {
-  const rid = await getRestaurantId();
-  if (!rid) return;
-  setSavingPeriod(true);
-  await supabase.from("restaurants").update({
-    outdoor_from: outdoorFrom || null,
-    outdoor_to: outdoorTo || null,
-  }).eq("id", rid);
-  await fetch("/api/sync-configurazione", { method: "POST" }); // ← questa riga
-  setSavingPeriod(false);
-  setPeriodSaved(true);
-  setTimeout(() => setPeriodSaved(false), 3000);
-}
+    const rid = await getRestaurantId();
+    if (!rid) return;
+    setSavingPeriod(true);
+    await supabase.from("restaurants").update({
+      outdoor_from: outdoorFrom || null,
+      outdoor_to: outdoorTo || null,
+    }).eq("id", rid);
+    await fetch("/api/sync-configurazione", { method: "POST" });
+    setSavingPeriod(false);
+    setPeriodSaved(true);
+    setTimeout(() => setPeriodSaved(false), 3000);
+  }
 
   async function removePeriod() {
     const rid = await getRestaurantId();
@@ -132,7 +131,6 @@ export default function TavoliPage() {
     loadData(); await syncAll();
   }
 
-  // Calcola stato periodo dehors
   function getPeriodStatus() {
     if (!outdoorFrom || !outdoorTo) return null;
     const today = new Date().toISOString().split("T")[0];
@@ -159,6 +157,7 @@ export default function TavoliPage() {
 
   return (
     <div>
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-[#1c1917]">Gestione Tavoli</h1>
@@ -167,119 +166,16 @@ export default function TavoliPage() {
         {syncing && <span className="text-sm text-[#c2410c] font-medium">Sync in corso...</span>}
       </div>
 
-      {/* Aggiungi tavolo */}
-      <div className="bg-white rounded-xl border border-[#e8e0d8] p-4 sm:p-6 mb-6">
-        <h2 className="text-sm font-semibold text-[#1c1917] mb-4">Aggiungi nuovo tavolo</h2>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1">
-            <label className="block text-sm text-[#78716c] mb-1">Nome</label>
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="es. Tavolo7"
-              className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none"
-            />
+      {/* 1. TAVOLI INTERNI */}
+      <div className="mb-6">
+        <h2 className="text-xs font-semibold text-[#a8a29e] uppercase tracking-wide mb-3 px-1">
+          Tavoli interni
+        </h2>
+        {interni.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#e8e0d8] px-6 py-8 text-center">
+            <p className="text-sm text-[#d6cfc7]">Nessun tavolo interno.</p>
           </div>
-          <div className="w-full sm:w-28">
-            <label className="block text-sm text-[#78716c] mb-1">Posti</label>
-            <input
-              type="number"
-              value={newSeats}
-              onChange={(e) => setNewSeats(parseInt(e.target.value) || 1)}
-              min={1} max={20}
-              className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none"
-            />
-          </div>
-          <div className="w-full sm:w-40">
-            <label className="block text-sm text-[#78716c] mb-1">Posizione</label>
-            <select
-              value={newIsOutdoor ? "esterno" : "interno"}
-              onChange={(e) => setNewIsOutdoor(e.target.value === "esterno")}
-              className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none bg-white"
-            >
-              <option value="interno">Interno</option>
-              <option value="esterno">Esterno</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={addTable}
-              className="bg-[#c2410c] hover:bg-[#9a3412] w-full sm:w-auto px-5 py-2 text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              Aggiungi
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Banner Tavoli esterni */}
-      <div className="bg-white rounded-xl border border-[#e8e0d8] p-4 sm:p-5 mb-6">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div>
-            <h2 className="text-sm font-semibold text-[#1c1917]">Tavoli esterni</h2>
-            {outdoorFrom && outdoorTo ? (
-              <p className="text-xs text-[#a8a29e] mt-0.5">
-                Periodo impostato: {formatDate(outdoorFrom)} → {formatDate(outdoorTo)}{" "}
-                <span className={`font-medium ${
-                  periodStatus === "attivo" ? "text-green-600" :
-                  periodStatus === "terminato" ? "text-red-500" : "text-[#a8a29e]"
-                }`}>
-                  ({periodStatus})
-                </span>
-              </p>
-            ) : (
-              <p className="text-xs text-[#a8a29e] mt-0.5">Nessun periodo dehors impostato — i tavoli esterni non saranno mai disponibili</p>
-            )}
-          </div>
-          {periodSaved && <span className="text-xs text-green-600 font-medium shrink-0">Salvato</span>}
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 items-end">
-          <div>
-            <label className="block text-xs text-[#78716c] mb-1">Dal</label>
-            <input
-              type="date"
-              value={outdoorFrom}
-              onChange={(e) => setOutdoorFrom(e.target.value)}
-              className="px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-[#78716c] mb-1">Al</label>
-            <input
-              type="date"
-              value={outdoorTo}
-              onChange={(e) => setOutdoorTo(e.target.value)}
-              className="px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={savePeriod}
-              disabled={savingPeriod || !outdoorFrom || !outdoorTo}
-              className="bg-[#c2410c] hover:bg-[#9a3412] disabled:opacity-50 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              {savingPeriod ? "Salvataggio..." : "Salva periodo"}
-            </button>
-            {(outdoorFrom || outdoorTo) && (
-              <button
-                onClick={removePeriod}
-                disabled={savingPeriod}
-                className="px-4 py-2 text-sm text-[#78716c] hover:text-[#1c1917] border border-[#e8e0d8] rounded-lg transition-colors"
-              >
-                Rimuovi
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Sezione tavoli interni */}
-      {interni.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-sm font-semibold text-[#78716c] uppercase tracking-wide mb-3 px-1">
-            Tavoli interni
-          </h2>
+        ) : (
           <TableList
             tables={interni}
             editingId={editingId}
@@ -294,12 +190,12 @@ export default function TavoliPage() {
             onToggle={toggleActive}
             onDelete={deleteTable}
           />
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Sezione tavoli esterni */}
-      <div>
-        <h2 className="text-sm font-semibold text-[#78716c] uppercase tracking-wide mb-3 px-1">
+      {/* 2. TAVOLI ESTERNI */}
+      <div className="mb-6">
+        <h2 className="text-xs font-semibold text-[#a8a29e] uppercase tracking-wide mb-3 px-1">
           Tavoli esterni
         </h2>
         {esterni.length === 0 ? (
@@ -322,6 +218,115 @@ export default function TavoliPage() {
             onDelete={deleteTable}
           />
         )}
+      </div>
+
+      {/* 3. BANNER TAVOLI ESTERNI — date picker */}
+      <div className="bg-white rounded-xl border border-[#e8e0d8] p-4 sm:p-5 mb-6">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-sm font-semibold text-[#1c1917]">Tavoli esterni</h2>
+            {outdoorFrom && outdoorTo ? (
+              <p className="text-xs text-[#a8a29e] mt-0.5">
+                Periodo impostato: {formatDate(outdoorFrom)} → {formatDate(outdoorTo)}{" "}
+                <span className={`font-medium ${
+                  periodStatus === "attivo" ? "text-green-600" :
+                  periodStatus === "terminato" ? "text-red-500" : "text-[#a8a29e]"
+                }`}>
+                  ({periodStatus})
+                </span>
+              </p>
+            ) : (
+              <p className="text-xs text-[#a8a29e] mt-0.5">
+                Nessun periodo impostato — i tavoli esterni non saranno mai disponibili
+              </p>
+            )}
+          </div>
+          {periodSaved && <span className="text-xs text-green-600 font-medium shrink-0">Salvato</span>}
+        </div>
+
+        {/* Date picker: su mobile impila verticalmente con label+input a larghezza piena */}
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+          <div>
+            <label className="block text-xs text-[#78716c] mb-1">Dal</label>
+            <input
+              type="date"
+              value={outdoorFrom}
+              onChange={(e) => setOutdoorFrom(e.target.value)}
+              className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[#78716c] mb-1">Al</label>
+            <input
+              type="date"
+              value={outdoorTo}
+              onChange={(e) => setOutdoorTo(e.target.value)}
+              className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={savePeriod}
+              disabled={savingPeriod || !outdoorFrom || !outdoorTo}
+              className="flex-1 sm:flex-none bg-[#c2410c] hover:bg-[#9a3412] disabled:opacity-50 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {savingPeriod ? "Salvataggio..." : "Salva periodo"}
+            </button>
+            {(outdoorFrom || outdoorTo) && (
+              <button
+                onClick={removePeriod}
+                disabled={savingPeriod}
+                className="flex-1 sm:flex-none px-4 py-2 text-sm text-[#78716c] hover:text-[#1c1917] border border-[#e8e0d8] rounded-lg transition-colors"
+              >
+                Rimuovi
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. AGGIUNGI TAVOLO */}
+      <div className="bg-white rounded-xl border border-[#e8e0d8] p-4 sm:p-6">
+        <h2 className="text-sm font-semibold text-[#1c1917] mb-4">Aggiungi nuovo tavolo</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-3 items-end">
+          <div>
+            <label className="block text-xs text-[#78716c] mb-1">Nome</label>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="es. Tavolo7"
+              className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[#78716c] mb-1">Posti</label>
+            <input
+              type="number"
+              value={newSeats}
+              onChange={(e) => setNewSeats(parseInt(e.target.value) || 1)}
+              min={1} max={20}
+              className="w-full sm:w-24 px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[#78716c] mb-1">Posizione</label>
+            <select
+              value={newIsOutdoor ? "esterno" : "interno"}
+              onChange={(e) => setNewIsOutdoor(e.target.value === "esterno")}
+              className="w-full sm:w-36 px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] focus:ring-2 focus:ring-[#c2410c]/30 focus:border-[#c2410c] outline-none bg-white"
+            >
+              <option value="interno">Interno</option>
+              <option value="esterno">Esterno</option>
+            </select>
+          </div>
+          <button
+            onClick={addTable}
+            className="bg-[#c2410c] hover:bg-[#9a3412] w-full sm:w-auto px-5 py-2 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            Aggiungi
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -347,7 +352,7 @@ function TableList({
 }) {
   return (
     <>
-      {/* Desktop */}
+      {/* Desktop: tabella */}
       <div className="hidden sm:block bg-white rounded-xl border border-[#e8e0d8] overflow-hidden">
         <table className="w-full">
           <thead>
@@ -464,39 +469,52 @@ function TableList({
         </table>
       </div>
 
-      {/* Mobile */}
-      <div className="sm:hidden space-y-3">
+      {/* Mobile: cards */}
+      <div className="sm:hidden space-y-2">
         {tables.map((table) => (
-          <div key={table.id} className="bg-white rounded-xl border border-[#e8e0d8] p-4">
+          <div
+            key={table.id}
+            className={`bg-white rounded-xl border border-[#e8e0d8] p-4 ${!table.is_active ? "opacity-60" : ""}`}
+          >
             {editingId === table.id ? (
+              /* Edit mode */
               <div className="space-y-3">
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] outline-none focus:border-[#c2410c]"
-                />
-                <div className="flex gap-2">
+                <div>
+                  <label className="block text-xs text-[#78716c] mb-1">Nome</label>
                   <input
-                    type="number"
-                    value={editSeats}
-                    onChange={(e) => setEditSeats(parseInt(e.target.value) || 1)}
-                    min={1} max={20}
-                    className="w-24 px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] outline-none focus:border-[#c2410c]"
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] outline-none focus:border-[#c2410c]"
                   />
-                  <select
-                    value={editIsOutdoor ? "esterno" : "interno"}
-                    onChange={(e) => setEditIsOutdoor(e.target.value === "esterno")}
-                    className="flex-1 px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] outline-none bg-white"
-                  >
-                    <option value="interno">Interno</option>
-                    <option value="esterno">Esterno</option>
-                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <div className="w-24">
+                    <label className="block text-xs text-[#78716c] mb-1">Posti</label>
+                    <input
+                      type="number"
+                      value={editSeats}
+                      onChange={(e) => setEditSeats(parseInt(e.target.value) || 1)}
+                      min={1} max={20}
+                      className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] outline-none focus:border-[#c2410c]"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-[#78716c] mb-1">Posizione</label>
+                    <select
+                      value={editIsOutdoor ? "esterno" : "interno"}
+                      onChange={(e) => setEditIsOutdoor(e.target.value === "esterno")}
+                      className="w-full px-3 py-2 border border-[#d6cfc7] rounded-lg text-sm text-[#1c1917] outline-none bg-white"
+                    >
+                      <option value="interno">Interno</option>
+                      <option value="esterno">Esterno</option>
+                    </select>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => onUpdate(table.id)}
-                    className="flex-1 bg-[#c2410c] text-white text-sm py-2 rounded-lg"
+                    className="flex-1 bg-[#c2410c] hover:bg-[#9a3412] text-white text-sm font-medium py-2 rounded-lg"
                   >
                     Salva
                   </button>
@@ -509,24 +527,27 @@ function TableList({
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-[#1c1917]">{table.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs text-[#a8a29e]">{table.seats} posti</p>
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs ${
+              /* View mode */
+              <div>
+                {/* Riga info */}
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-[#1c1917]">{table.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-[#a8a29e]">{table.seats}p</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                       table.is_outdoor ? "bg-sky-50 text-sky-700" : "bg-[#f5f0eb] text-[#78716c]"
                     }`}>
                       {table.is_outdoor ? "Esterno" : "Interno"}
                     </span>
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs ${
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                       table.is_active ? "bg-green-50 text-green-700" : "bg-[#f5f0eb] text-[#a8a29e]"
                     }`}>
                       {table.is_active ? "Attivo" : "Disattivo"}
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                {/* Riga pulsanti: tutti flex-1, allineati */}
+                <div className="flex gap-2">
                   <button
                     onClick={() => {
                       setEditingId(table.id);
@@ -534,19 +555,24 @@ function TableList({
                       setEditSeats(table.seats);
                       setEditIsOutdoor(table.is_outdoor);
                     }}
-                    className="text-sm text-[#78716c]"
+                    className="flex-1 py-1.5 text-xs font-medium text-[#78716c] border border-[#e8e0d8] rounded-lg hover:bg-[#faf7f5]"
                   >
                     Modifica
                   </button>
                   <button
                     onClick={() => onToggle(table.id, table.is_active)}
-                    className={`text-sm font-medium ${
-                      table.is_active ? "text-amber-600" : "text-green-600"
+                    className={`flex-1 py-1.5 text-xs font-medium border rounded-lg ${
+                      table.is_active
+                        ? "text-amber-600 border-amber-200 hover:bg-amber-50"
+                        : "text-green-600 border-green-200 hover:bg-green-50"
                     }`}
                   >
                     {table.is_active ? "Disattiva" : "Attiva"}
                   </button>
-                  <button onClick={() => onDelete(table.id)} className="text-sm text-red-500">
+                  <button
+                    onClick={() => onDelete(table.id)}
+                    className="flex-1 py-1.5 text-xs font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50"
+                  >
                     Elimina
                   </button>
                 </div>
