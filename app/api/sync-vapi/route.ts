@@ -130,6 +130,13 @@ function generateSystemPrompt(data: any): string {
     "14. FIDATI SOLO del campo status nella risposta del tool. MAI della tua immaginazione.",
     "15. QUESTE REGOLE HANNO PRIORITA MASSIMA SU TUTTO IL RESTO DEL PROMPT.",
     "",
+    "TOOL CALL IN CORSO -- SILENZIO ASSOLUTO:",
+    "16. Appena chiami un tool, SMETTI DI PARLARE IMMEDIATAMENTE. Silenzio totale.",
+    "17. NON dire nulla mentre aspetti la risposta: ne 'sto cercando', ne 'un momento', NIENTE.",
+    "18. Se senti il cliente parlare mentre il tool e in esecuzione, IGNORALO completamente.",
+    "19. Riprendi a parlare SOLO dopo aver ricevuto e letto l'intera risposta del tool.",
+    "20. Questo vale per check_disponibilita, crea_prenotazione, modifica_prenotazione e transfer_call_tool.",
+    "",
     "===============================================",
     "STILE DI CONVERSAZIONE",
     "===============================================",
@@ -138,8 +145,8 @@ function generateSystemPrompt(data: any): string {
     '- Sii naturale: \"Perfetto!\", \"Fatto!\", \"Ci vediamo!\", \"Nessun problema!\"',
     "- Non ripetere mai tutti i dettagli. Conferma solo il minimo necessario.",
     '- Se non capisci: \"Scusa, non ho capito. Puoi ripetere?\"',
-    '- Quando stai per cercare disponibilita: \"Un momento che controllo\"',
-    '- Quando stai per salvare: \"Un attimo che prendo nota\"',
+    '- Quando stai per cercare disponibilita: aspetta in silenzio, poi rispondi con il risultato.',
+    '- Quando stai per salvare: aspetta in silenzio, poi conferma il risultato.',
     "- Le date vanno SEMPRE dette in italiano, mai in inglese.",
     "",
     "===============================================",
@@ -184,14 +191,25 @@ function generateSystemPrompt(data: any): string {
     "GESTIONE PRENOTAZIONI",
     "===============================================",
     "",
-    "DURATA: Ogni prenotazione dura 2 ore.",
+    "DURATA: Ogni prenotazione dura ESATTAMENTE 2 ore.",
+    "Quando confermi, comunica SEMPRE sia l'ora di inizio che l'ora di fine.",
+    "Esempio: 'Perfetto, ti segno per le 20:00, finisci alle 22:00.'",
+    "",
+    "CATTURA NUMERO DI TELEFONO:",
+    "- Chiedi il numero di telefono cifra per cifra se non sei sicuro di averlo capito bene.",
+    "- Ripeti SEMPRE il numero cifra per cifra per conferma prima di procedere.",
+    "- Esempio: 'Hai detto tre-tre-tre, uno-due-tre, quattro-cinque-sei-sette, giusto?'",
+    "- Aspetta conferma esplicita (Si/Esatto/Giusto) prima di chiamare crea_prenotazione.",
+    "- Se il cliente corregge una cifra, ripeti l'intero numero aggiornato per conferma.",
     "",
     "FLUSSO PER NUOVA PRENOTAZIONE:",
     "1. Chiedi: data, ora, numero di persone.",
     "2. Se la data cade nel periodo dehors (" + (outdoorFrom || "non configurato") + " - " + (outdoorTo || "non configurato") + "), chiedi: 'Preferisci sederti all'interno o all'esterno?'",
     "3. Chiama check_disponibilita con: data (YYYY-MM-DD), ora (HH:MM), persone, posizione ('interno' o 'esterno').",
-    "4. Se disponibile: comunica tavolo, chiedi nome e telefono, conferma, chiama crea_prenotazione.",
-    "5. Se non disponibile: proponi orari alternativi.",
+    "4. Se disponibile: comunica tavolo assegnato e ora di fine (inizio + 2 ore). Chiedi nome e numero di telefono.",
+    "5. Ripeti il numero di telefono cifra per cifra e aspetta conferma.",
+    "6. Chiama crea_prenotazione solo dopo conferma del numero.",
+    "7. Se non disponibile: proponi orari alternativi.",
     "",
     "FLUSSO PER MODIFICA:",
     "1. Chiedi NOME e DATA della prenotazione.",
@@ -273,12 +291,32 @@ export async function POST() {
 
     const updatedModel = { ...currentModel, messages: [{ role: "system", content: prompt }] };
 
+    const patchBody: any = {
+      model: updatedModel,
+      // -------------------------------------------------------
+      // BLOCCO 5 — Fix tool call silence
+      // Aumenta la soglia "no punctuation" per evitare che
+      // l'agente inizi a parlare mentre il tool è in esecuzione.
+      // -------------------------------------------------------
+      startSpeakingPlan: {
+        waitSeconds: 0.4,
+        smartEndpointingEnabled: true,
+        transcriptionEndpointingPlan: {
+          onPunctuationSeconds: 0.1,
+          onNoPunctuationSeconds: 1.5, // era default 0.5 — alzato per evitare falsi start
+          onNumberSeconds: 0.5,
+        },
+      },
+      // Riduce il rumore di fondo durante le chiamate
+      backgroundDenoisingEnabled: true,
+    };
+
     const patchResponse = await fetch(
       "https://api.vapi.ai/assistant/" + restaurant.vapi_assistant_id,
       {
         method: "PATCH",
         headers: { "Authorization": "Bearer " + restaurant.vapi_api_key, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: updatedModel }),
+        body: JSON.stringify(patchBody),
       }
     );
 
