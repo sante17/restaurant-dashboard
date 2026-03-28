@@ -69,18 +69,18 @@ export default function TavoliPage() {
   }
 
   async function savePeriod() {
-    const rid = await getRestaurantId();
-    if (!rid) return;
-    setSavingPeriod(true);
-    await supabase.from("restaurants").update({
-      outdoor_from: outdoorFrom || null,
-      outdoor_to: outdoorTo || null,
-    }).eq("id", rid);
-    await fetch("/api/sync-configurazione", { method: "POST" });
-    setSavingPeriod(false);
-    setPeriodSaved(true);
-    setTimeout(() => setPeriodSaved(false), 3000);
-  }
+  const rid = await getRestaurantId();
+  if (!rid) return;
+  setSavingPeriod(true);
+  await supabase.from("restaurants").update({
+    outdoor_from: outdoorFrom || null,
+    outdoor_to: outdoorTo || null,
+  }).eq("id", rid);
+  await fetch("/api/sync-configurazione", { method: "POST" }); // ← questa riga
+  setSavingPeriod(false);
+  setPeriodSaved(true);
+  setTimeout(() => setPeriodSaved(false), 3000);
+}
 
   async function removePeriod() {
     const rid = await getRestaurantId();
