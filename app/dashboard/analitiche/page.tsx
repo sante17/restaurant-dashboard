@@ -10,22 +10,12 @@ interface Prenotazione {
 }
 
 interface CustomerStats {
-  nome: string;
-  telefono: string;
-  email: string;
-  totalBookings: number;
-  totalPersone: number;
-  avgPersone: number;
-  firstBooking: string;
-  lastBooking: string;
-  avgDaysBetween: number | null;
-  presenteCount: number;
-  noShowCount: number;
-  attendanceRate: number | null;
+  nome: string; telefono: string; email: string;
+  totalBookings: number; totalPersone: number; avgPersone: number;
+  firstBooking: string; lastBooking: string; avgDaysBetween: number | null;
+  presenteCount: number; noShowCount: number; attendanceRate: number | null;
   dates: string[];
 }
-
-// ─── Pie chart ───────────────────────────────────────────────────────────────
 
 interface PieSlice { label: string; value: number; color: string }
 
@@ -81,31 +71,17 @@ function PieChart({ data }: { data: PieSlice[] }) {
   );
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 const FONTE_COLORS: Record<string, string> = {
-  Telefono: "#c2410c",
-  WhatsApp: "#16a34a",
-  Dashboard: "#6366f1",
-  Manuale: "#6366f1",
+  Telefono: "#c2410c", WhatsApp: "#16a34a", Dashboard: "#6366f1", Manuale: "#6366f1",
 };
-
-function getFonteColor(label: string) {
-  return FONTE_COLORS[label] ?? "#a8a29e";
-}
-
-function isPresente(val: string) {
-  return val.trim().toLowerCase().startsWith("s");
-}
-function isNoShow(val: string) {
-  return val.trim().toLowerCase().startsWith("n");
-}
+function getFonteColor(label: string) { return FONTE_COLORS[label] ?? "#a8a29e"; }
+function isPresente(val: string) { return val.trim().toLowerCase().startsWith("s"); }
+function isNoShow(val: string) { return val.trim().toLowerCase().startsWith("n"); }
 
 function formatDate(dateStr: string) {
   if (!dateStr) return "—";
   return new Date(dateStr + "T00:00:00").toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" });
 }
-
 function getFrequencyLabel(avgDays: number | null) {
   if (avgDays === null) return "Prima visita";
   if (avgDays <= 7) return "Settimanale";
@@ -114,7 +90,6 @@ function getFrequencyLabel(avgDays: number | null) {
   if (avgDays <= 70) return "Bimestrale";
   return "Occasionale";
 }
-
 function getFrequencyColor(avgDays: number | null) {
   if (avgDays === null) return "bg-[#f5f0eb] text-[#78716c]";
   if (avgDays <= 14) return "bg-green-100 text-green-700";
@@ -122,15 +97,12 @@ function getFrequencyColor(avgDays: number | null) {
   if (avgDays <= 70) return "bg-amber-100 text-amber-700";
   return "bg-[#f5f0eb] text-[#78716c]";
 }
-
 function getAttendanceBadge(rate: number | null): string {
   if (rate === null) return "bg-[#f5f0eb] text-[#78716c]";
   if (rate >= 80) return "bg-green-100 text-green-700";
   if (rate >= 50) return "bg-amber-100 text-amber-700";
   return "bg-red-100 text-red-600";
 }
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AnalitichePage() {
   const [prenotazioni, setPrenotazioni] = useState<Prenotazione[]>([]);
@@ -215,7 +187,6 @@ export default function AnalitichePage() {
     if (sortBy === "bookings") stats.sort((a, b) => b.totalBookings - a.totalBookings);
     else if (sortBy === "persone") stats.sort((a, b) => b.totalPersone - a.totalPersone);
     else if (sortBy === "recent") stats.sort((a, b) => b.lastBooking.localeCompare(a.lastBooking));
-
     return stats;
   }
 
@@ -224,7 +195,6 @@ export default function AnalitichePage() {
   const repeatCustomers = customers.filter((c) => c.totalBookings > 1);
   const totalGuests = bookings.reduce((s, b) => s + (parseInt(b.Persone, 10) || 1), 0);
 
-  // Fonte distribution
   const fonteMap = new Map<string, number>();
   for (const b of bookings) {
     const f = b.Fonte?.trim() || "Non specificata";
@@ -234,21 +204,14 @@ export default function AnalitichePage() {
     .sort((a, b) => b[1] - a[1])
     .map(([label, value]) => ({ label, value, color: getFonteColor(label) }));
 
-  // Presenze globali
   const bookingsWithPresence = bookings.filter((b) => b.Presentato?.trim());
-  const totalPresenti = bookingsWithPresence.filter((b) => isPresente(b.Presentato)).length;
   const totalNoShow = bookingsWithPresence.filter((b) => isNoShow(b.Presentato)).length;
-  const globalAttendanceRate = bookingsWithPresence.length > 0
-    ? Math.round((totalPresenti / bookingsWithPresence.length) * 100)
-    : null;
 
-  // No-show table: customers con almeno un dato presenza, ordinati per tasso presenza asc
   const noShowCustomers = customers
     .filter((c) => c.attendanceRate !== null)
     .sort((a, b) => (a.attendanceRate ?? 100) - (b.attendanceRate ?? 100))
     .slice(0, 20);
 
-  // Distribuzione oraria
   const hourDist: Record<string, number> = {};
   for (const b of bookings) {
     const h = b.OraInizio?.split(":")[0];
@@ -256,7 +219,6 @@ export default function AnalitichePage() {
   }
   const topHours = Object.entries(hourDist).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-  // Distribuzione giorni
   const dayNames = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
   const dayDist: Record<number, number> = {};
   for (const b of bookings) {
@@ -274,7 +236,6 @@ export default function AnalitichePage() {
 
   return (
     <div>
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1c1917]">Analitiche</h1>
@@ -287,7 +248,6 @@ export default function AnalitichePage() {
 
       {error && <div className="mb-4 p-3 bg-[#fef2f2] border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
 
-      {/* Filtro periodo */}
       <div className="flex flex-wrap gap-2 mb-6">
         {([["all", "Tutto"], ["3months", "3 mesi"], ["6months", "6 mesi"], ["year", "12 mesi"]] as const).map(([val, label]) => (
           <button key={val} onClick={() => setPeriod(val)}
@@ -322,7 +282,7 @@ export default function AnalitichePage() {
         </div>
       </div>
 
-      {/* Fonte + Presenze */}
+      {/* Sorgente + Presenze */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-[#e8e0d8] p-4">
           <h3 className="text-sm font-semibold text-[#1c1917] mb-4">Sorgente prenotazioni</h3>
@@ -334,35 +294,19 @@ export default function AnalitichePage() {
           {bookingsWithPresence.length === 0 ? (
             <p className="text-sm text-[#d6cfc7] text-center py-6">Nessun dato presenza registrato</p>
           ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-[#faf7f5] rounded-lg p-3 text-center">
-                  <p className="text-xs text-[#a8a29e] mb-1">Tasso presenza</p>
-                  <p className="text-xl font-bold text-[#1c1917]">{globalAttendanceRate ?? "—"}{globalAttendanceRate !== null ? "%" : ""}</p>
-                </div>
-                <div className="bg-green-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-[#a8a29e] mb-1">Presenti</p>
-                  <p className="text-xl font-bold text-green-700">{totalPresenti}</p>
-                </div>
-                <div className="bg-red-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-[#a8a29e] mb-1">No-show</p>
-                  <p className="text-xl font-bold text-red-600">{totalNoShow}</p>
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-red-50 rounded-lg p-4">
+                <p className="text-xs text-[#a8a29e] mb-1">No-show nel periodo</p>
+                <p className="text-3xl font-bold text-red-600">{totalNoShow}</p>
+                <p className="text-xs text-[#a8a29e] mt-1">su {bookings.length} prenotazioni</p>
               </div>
-              {/* Barra visuale */}
-              {bookingsWithPresence.length > 0 && (
-                <div>
-                  <div className="flex justify-between text-xs text-[#a8a29e] mb-1">
-                    <span>Presenti</span>
-                    <span>No-show</span>
-                  </div>
-                  <div className="flex h-3 rounded-full overflow-hidden bg-[#f5f0eb]">
-                    <div className="bg-green-500 h-full transition-all" style={{ width: `${Math.round((totalPresenti / bookingsWithPresence.length) * 100)}%` }} />
-                    <div className="bg-red-400 h-full transition-all" style={{ width: `${Math.round((totalNoShow / bookingsWithPresence.length) * 100)}%` }} />
-                  </div>
-                  <p className="text-xs text-[#d6cfc7] mt-1 text-right">{bookingsWithPresence.length} prenotazioni con dato registrato</p>
-                </div>
-              )}
+              <div className="bg-[#faf7f5] rounded-lg p-4">
+                <p className="text-xs text-[#a8a29e] mb-1">Tasso no-show</p>
+                <p className="text-3xl font-bold text-[#1c1917]">
+                  {Math.round((totalNoShow / bookings.length) * 100)}%
+                </p>
+                <p className="text-xs text-[#a8a29e] mt-1">{bookingsWithPresence.length} con dato registrato</p>
+              </div>
             </div>
           )}
         </div>
@@ -412,7 +356,7 @@ export default function AnalitichePage() {
         </div>
       </div>
 
-      {/* No-show clienti */}
+      {/* No-show per cliente */}
       {noShowCustomers.length > 0 && (
         <div className="bg-white rounded-xl border border-[#e8e0d8] overflow-hidden mb-6">
           <div className="p-4 border-b border-[#e8e0d8]">
@@ -471,7 +415,6 @@ export default function AnalitichePage() {
 
         {customers.length > 0 ? (
           <>
-            {/* Mobile: cards */}
             <div className="sm:hidden divide-y divide-[#f0ebe5]">
               {customers.slice(0, 50).map((c, i) => (
                 <div key={i} className="p-4">
@@ -496,7 +439,6 @@ export default function AnalitichePage() {
               ))}
             </div>
 
-            {/* Desktop: tabella */}
             <table className="w-full hidden sm:table">
               <thead>
                 <tr className="bg-[#faf7f5] border-b border-[#e8e0d8]">

@@ -10,24 +10,15 @@ interface Prenotazione {
 }
 
 interface CustomerData {
-  key: string;
-  nome: string;
-  telefono: string;
-  email: string;
-  totalBookings: number;
-  totalPersone: number;
-  lastBooking: string;
-  firstBooking: string;
-  presenteCount: number;
-  noShowCount: number;
-  attendanceRate: number | null;
-  nota: string;
+  key: string; nome: string; telefono: string; email: string;
+  totalBookings: number; totalPersone: number;
+  lastBooking: string; firstBooking: string;
+  presenteCount: number; noShowCount: number;
+  attendanceRate: number | null; nota: string;
 }
 
 type SortField = "nome" | "telefono" | "lastBooking" | "totalBookings" | "totalPersone" | "attendanceRate";
 type SortDir = "asc" | "desc";
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
 
 const IconSearch = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -56,8 +47,6 @@ const IconSort = ({ active, dir }: { active: boolean; dir: SortDir }) => (
   </svg>
 );
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function isPresente(v: string) { return v.trim().toLowerCase().startsWith("s"); }
 function isNoShow(v: string) { return v.trim().toLowerCase().startsWith("n"); }
 
@@ -72,8 +61,6 @@ function getAttendanceBadge(rate: number | null) {
   if (rate >= 50) return "bg-amber-100 text-amber-700";
   return "bg-red-100 text-red-600";
 }
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ClientiPage() {
   const [prenotazioni, setPrenotazioni] = useState<Prenotazione[]>([]);
@@ -108,7 +95,6 @@ export default function ClientiPage() {
     setLoading(false);
   }
 
-  // Build aggregated customer list
   const allCustomers = useMemo<CustomerData[]>(() => {
     const confirmed = prenotazioni.filter((p) => p.Stato === "Confermata" && p.Nome?.trim());
     const map = new Map<string, { nome: string; telefono: string; email: string; bookings: Prenotazione[] }>();
@@ -131,18 +117,11 @@ export default function ClientiPage() {
       const withPresence = sorted.filter((b) => b.Presentato?.trim());
       const presenteCount = withPresence.filter((b) => isPresente(b.Presentato)).length;
       const noShowCount = withPresence.filter((b) => isNoShow(b.Presentato)).length;
-
       result.push({
-        key,
-        nome: entry.nome,
-        telefono: entry.telefono,
-        email: entry.email,
-        totalBookings: sorted.length,
-        totalPersone,
-        lastBooking: sorted.at(-1)!.Data,
-        firstBooking: sorted[0].Data,
-        presenteCount,
-        noShowCount,
+        key, nome: entry.nome, telefono: entry.telefono, email: entry.email,
+        totalBookings: sorted.length, totalPersone,
+        lastBooking: sorted.at(-1)!.Data, firstBooking: sorted[0].Data,
+        presenteCount, noShowCount,
         attendanceRate: withPresence.length > 0 ? Math.round((presenteCount / withPresence.length) * 100) : null,
         nota: notes[key] ?? "",
       });
@@ -175,10 +154,7 @@ export default function ClientiPage() {
     else { setSortField(field); setSortDir("desc"); }
   }
 
-  function startEdit(key: string, currentNota: string) {
-    setEditingKey(key);
-    setEditText(currentNota);
-  }
+  function startEdit(key: string, currentNota: string) { setEditingKey(key); setEditText(currentNota); }
 
   async function saveNote(key: string) {
     setSavingNote(true);
@@ -225,7 +201,6 @@ export default function ClientiPage() {
 
   return (
     <div>
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1c1917]">Clienti</h1>
@@ -238,7 +213,6 @@ export default function ClientiPage() {
 
       {error && <div className="mb-4 p-3 bg-[#fef2f2] border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <div className="bg-white rounded-xl border border-[#e8e0d8] p-4">
           <p className="text-xs text-[#a8a29e]">Clienti totali</p>
@@ -260,7 +234,6 @@ export default function ClientiPage() {
         </div>
       </div>
 
-      {/* Search */}
       <div className="relative mb-4">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a8a29e]"><IconSearch /></span>
         <input
@@ -272,7 +245,6 @@ export default function ClientiPage() {
         />
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-xl border border-[#e8e0d8] overflow-hidden">
         {displayCustomers.length === 0 ? (
           <p className="px-6 py-12 text-sm text-[#d6cfc7] text-center">
@@ -280,7 +252,7 @@ export default function ClientiPage() {
           </p>
         ) : (
           <>
-            {/* Mobile: cards */}
+            {/* Mobile */}
             <div className="lg:hidden divide-y divide-[#f0ebe5]">
               {displayCustomers.map((c) => (
                 <div key={c.key} className="p-4 space-y-3">
@@ -301,17 +273,11 @@ export default function ClientiPage() {
                     <div><span className="text-[#d6cfc7]">Ospiti tot.</span><p className="font-semibold text-[#1c1917]">{c.totalPersone}</p></div>
                     <div><span className="text-[#d6cfc7]">Ultima</span><p className="font-semibold text-[#1c1917]">{formatDate(c.lastBooking)}</p></div>
                   </div>
-                  {/* Note (mobile) */}
                   {editingKey === c.key ? (
                     <div className="space-y-2">
-                      <textarea
-                        autoFocus
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        rows={3}
+                      <textarea autoFocus value={editText} onChange={(e) => setEditText(e.target.value)} rows={3}
                         className="w-full text-sm border border-[#e8e0d8] rounded-lg px-3 py-2 text-[#1c1917] focus:outline-none focus:ring-2 focus:ring-[#c2410c] resize-none"
-                        placeholder="Aggiungi una nota..."
-                      />
+                        placeholder="Aggiungi una nota..." />
                       <div className="flex gap-2">
                         <button onClick={() => saveNote(c.key)} disabled={savingNote}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-[#c2410c] text-white text-xs font-medium rounded-lg disabled:opacity-60">
@@ -326,22 +292,21 @@ export default function ClientiPage() {
                     <button onClick={() => startEdit(c.key, c.nota)}
                       className="flex items-center gap-2 text-xs text-[#a8a29e] hover:text-[#c2410c] transition-colors group w-full text-left">
                       <span className="group-hover:text-[#c2410c]"><IconEdit /></span>
-                      <span className={c.nota ? "text-[#78716c]" : "italic"}>
-                        {c.nota || "Aggiungi nota..."}
-                      </span>
+                      <span className={c.nota ? "text-[#78716c]" : "italic"}>{c.nota || "Aggiungi nota..."}</span>
                     </button>
                   )}
                 </div>
               ))}
             </div>
 
-            {/* Desktop: table */}
+            {/* Desktop */}
             <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-[#faf7f5] border-b border-[#e8e0d8]">
                     <SortTh field="nome" label="Cliente" />
                     <SortTh field="telefono" label="Telefono" />
+                    <th className="text-left text-xs font-semibold text-[#a8a29e] uppercase px-4 py-3">Email</th>
                     <SortTh field="lastBooking" label="Ultima visita" />
                     <SortTh field="totalBookings" label="Visite" center />
                     <SortTh field="totalPersone" label="Ospiti tot." center />
@@ -354,9 +319,9 @@ export default function ClientiPage() {
                     <tr key={c.key} className="border-b border-[#f0ebe5] last:border-0 hover:bg-[#faf7f5] align-top">
                       <td className="px-4 py-3">
                         <p className="text-sm font-medium text-[#1c1917]">{c.nome}</p>
-                        {c.email && <p className="text-xs text-[#d6cfc7]">{c.email}</p>}
                       </td>
                       <td className="px-4 py-3 text-sm text-[#78716c] font-mono">{c.telefono || "—"}</td>
+                      <td className="px-4 py-3 text-sm text-[#78716c]">{c.email || "—"}</td>
                       <td className="px-4 py-3">
                         <p className="text-sm text-[#78716c]">{formatDate(c.lastBooking)}</p>
                         <p className="text-xs text-[#d6cfc7]">Prima: {formatDate(c.firstBooking)}</p>
@@ -378,11 +343,7 @@ export default function ClientiPage() {
                       <td className="px-4 py-3 max-w-xs">
                         {editingKey === c.key ? (
                           <div className="space-y-1.5">
-                            <textarea
-                              autoFocus
-                              value={editText}
-                              onChange={(e) => setEditText(e.target.value)}
-                              rows={2}
+                            <textarea autoFocus value={editText} onChange={(e) => setEditText(e.target.value)} rows={2}
                               className="w-full text-xs border border-[#e8e0d8] rounded-lg px-2.5 py-1.5 text-[#1c1917] focus:outline-none focus:ring-2 focus:ring-[#c2410c] resize-none"
                               placeholder="Aggiungi una nota..."
                               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(c.key); } if (e.key === "Escape") cancelEdit(); }}
