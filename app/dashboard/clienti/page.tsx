@@ -188,10 +188,6 @@ export default function ClientiPage() {
   }
 
   const totalGuests = allCustomers.reduce((s, c) => s + c.totalPersone, 0);
-  const withAttendance = allCustomers.filter((c) => c.attendanceRate !== null);
-  const avgAttendance = withAttendance.length > 0
-    ? Math.round(withAttendance.reduce((s, c) => s + (c.attendanceRate ?? 0), 0) / withAttendance.length)
-    : null;
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -213,7 +209,7 @@ export default function ClientiPage() {
 
       {error && <div className="mb-4 p-3 bg-[#fef2f2] border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
         <div className="bg-white rounded-xl border border-[#e8e0d8] p-4">
           <p className="text-xs text-[#a8a29e]">Clienti totali</p>
           <p className="text-2xl font-bold text-[#1c1917]">{allCustomers.length}</p>
@@ -226,11 +222,6 @@ export default function ClientiPage() {
         <div className="bg-white rounded-xl border border-[#e8e0d8] p-4">
           <p className="text-xs text-[#a8a29e]">Ospiti totali</p>
           <p className="text-2xl font-bold text-[#1c1917]">{totalGuests}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-[#e8e0d8] p-4">
-          <p className="text-xs text-[#a8a29e]">Tasso presenza medio</p>
-          <p className="text-2xl font-bold text-[#1c1917]">{avgAttendance !== null ? `${avgAttendance}%` : "—"}</p>
-          {withAttendance.length > 0 && <p className="text-xs text-[#d6cfc7]">su {withAttendance.length} clienti</p>}
         </div>
       </div>
 
@@ -310,7 +301,7 @@ export default function ClientiPage() {
                     <SortTh field="lastBooking" label="Ultima visita" />
                     <SortTh field="totalBookings" label="Visite" center />
                     <SortTh field="totalPersone" label="Ospiti tot." center />
-                    <SortTh field="attendanceRate" label="Presenza" center />
+                    <SortTh field="attendanceRate" label="No-Show" center />
                     <th className="text-left text-xs font-semibold text-[#a8a29e] uppercase px-4 py-3">Nota</th>
                   </tr>
                 </thead>
@@ -329,13 +320,15 @@ export default function ClientiPage() {
                       <td className="px-4 py-3 text-sm font-semibold text-[#1c1917] text-center">{c.totalBookings}</td>
                       <td className="px-4 py-3 text-sm text-[#78716c] text-center">{c.totalPersone}</td>
                       <td className="px-4 py-3 text-center">
-                        {c.attendanceRate !== null ? (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className={"inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium " + getAttendanceBadge(c.attendanceRate)}>
-                              {c.attendanceRate}%
+                        {c.noShowCount > 0 ? (
+                          <span className="text-sm font-semibold text-red-500">
+                            {c.noShowCount}
+                            <span className="text-xs font-normal text-[#a8a29e] ml-1">
+                              ({Math.round((c.noShowCount / c.totalBookings) * 100)}%)
                             </span>
-                            <span className="text-xs text-[#d6cfc7]">{c.presenteCount}/{c.presenteCount + c.noShowCount}</span>
-                          </div>
+                          </span>
+                        ) : c.presenteCount > 0 ? (
+                          <span className="text-sm text-[#a8a29e]">0</span>
                         ) : (
                           <span className="text-xs text-[#d6cfc7]">—</span>
                         )}
