@@ -13,10 +13,7 @@ interface WaConversation {
   whatsapp_number: string;
   nome_cliente: string | null;
   stato: string;
-  intento: string | null;
   intento_finale: string | null;
-  dati_prenotazione: any;
-  created_at: string | null;
   updated_at: string;
   messages: WaMessage[];
   message_count: number;
@@ -49,7 +46,7 @@ const IconChevron = ({ open }: { open: boolean }) => (
   </svg>
 );
 
-function formatDateTime(str: string | null) {
+function formatDateTime(str: string) {
   if (!str) return "—";
   return new Date(str).toLocaleString("it-IT", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
@@ -88,8 +85,6 @@ export default function WhatsAppPage() {
     );
   });
 
-  const intento = (c: WaConversation) => c.intento_finale || c.intento || "";
-
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <p className="text-[#a8a29e]">Caricamento conversazioni...</p>
@@ -110,32 +105,6 @@ export default function WhatsAppPage() {
       </div>
 
       {error && <div className="mb-4 p-3 bg-[#fef2f2] border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <div className="bg-white rounded-xl border border-[#e8e0d8] p-4">
-          <p className="text-xs text-[#a8a29e]">Conversazioni totali</p>
-          <p className="text-2xl font-bold text-[#1c1917]">{conversations.length}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-[#e8e0d8] p-4">
-          <p className="text-xs text-[#a8a29e]">Prenotazioni</p>
-          <p className="text-2xl font-bold text-green-700">
-            {conversations.filter((c) => intento(c) === "nuova_prenotazione").length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-[#e8e0d8] p-4">
-          <p className="text-xs text-[#a8a29e]">Modifiche</p>
-          <p className="text-2xl font-bold text-blue-700">
-            {conversations.filter((c) => intento(c) === "modifica_prenotazione").length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-[#e8e0d8] p-4">
-          <p className="text-xs text-[#a8a29e]">Messaggi totali</p>
-          <p className="text-2xl font-bold text-[#1c1917]">
-            {conversations.reduce((s, c) => s + c.message_count, 0)}
-          </p>
-        </div>
-      </div>
 
       {/* Search */}
       <div className="relative mb-4">
@@ -158,32 +127,25 @@ export default function WhatsAppPage() {
             <p className="text-sm text-[#d6cfc7]">
               {search ? "Nessuna conversazione trovata" : "Nessuna conversazione registrata"}
             </p>
-            {!search && (
-              <p className="text-xs text-[#d6cfc7] mt-1">Le nuove conversazioni appariranno qui dopo le modifiche a n8n</p>
-            )}
           </div>
         ) : (
           filtered.map((c) => {
             const isOpen = expanded === c.id;
-            const intentoKey = intento(c);
+            const intentoKey = c.intento_finale || "";
+            const nomeDisplay = c.nome_cliente || c.whatsapp_number;
             return (
               <div key={c.id} className="bg-white rounded-xl border border-[#e8e0d8] overflow-hidden">
-                {/* Riga principale */}
                 <button
                   onClick={() => setExpanded(isOpen ? null : c.id)}
                   className="w-full text-left px-4 py-4 flex items-center gap-4 hover:bg-[#faf7f5] transition-colors"
                 >
-                  {/* Icona WA */}
                   <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-600 flex-shrink-0">
                     <IconWhatsApp />
                   </div>
 
-                  {/* Info principale */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-[#1c1917]">
-                        {c.nome_cliente || "Cliente sconosciuto"}
-                      </span>
+                      <span className="text-sm font-semibold text-[#1c1917]">{nomeDisplay}</span>
                       {intentoKey && (
                         <span className={"inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium " + (INTENTO_COLOR[intentoKey] ?? "bg-[#f5f0eb] text-[#78716c]")}>
                           {INTENTO_LABEL[intentoKey] ?? intentoKey}
@@ -193,7 +155,6 @@ export default function WhatsAppPage() {
                     <p className="text-xs text-[#a8a29e] font-mono mt-0.5">{c.whatsapp_number}</p>
                   </div>
 
-                  {/* Meta destra */}
                   <div className="hidden sm:flex flex-col items-end gap-1 flex-shrink-0">
                     <span className="text-xs text-[#a8a29e]">{formatDateTime(c.updated_at)}</span>
                     <span className="text-xs text-[#d6cfc7]">{c.message_count} messaggi</span>
@@ -204,73 +165,31 @@ export default function WhatsAppPage() {
                   </div>
                 </button>
 
-                {/* Transcript espanso */}
+                {/* Transcript */}
                 {isOpen && (
-                  <div className="border-t border-[#e8e0d8]">
-                    {/* Dati prenotazione se presenti */}
-                    {c.dati_prenotazione && Object.keys(c.dati_prenotazione).length > 0 && (
-                      <div className="px-4 py-3 bg-[#faf7f5] border-b border-[#e8e0d8]">
-                        <p className="text-xs font-semibold text-[#a8a29e] uppercase mb-2">Dati raccolti</p>
-                        <div className="flex flex-wrap gap-3">
-                          {c.dati_prenotazione.nome_cliente && (
-                            <span className="text-xs text-[#78716c]">
-                              <span className="text-[#a8a29e]">Nome:</span> {c.dati_prenotazione.nome_cliente}
-                            </span>
-                          )}
-                          {c.dati_prenotazione.data && (
-                            <span className="text-xs text-[#78716c]">
-                              <span className="text-[#a8a29e]">Data:</span> {c.dati_prenotazione.data}
-                            </span>
-                          )}
-                          {c.dati_prenotazione.ora && (
-                            <span className="text-xs text-[#78716c]">
-                              <span className="text-[#a8a29e]">Ora:</span> {c.dati_prenotazione.ora}
-                            </span>
-                          )}
-                          {c.dati_prenotazione.num_persone && (
-                            <span className="text-xs text-[#78716c]">
-                              <span className="text-[#a8a29e]">Persone:</span> {c.dati_prenotazione.num_persone}
-                            </span>
-                          )}
-                          {c.dati_prenotazione.posizione && (
-                            <span className="text-xs text-[#78716c]">
-                              <span className="text-[#a8a29e]">Posizione:</span> {c.dati_prenotazione.posizione}
-                            </span>
-                          )}
-                          {c.dati_prenotazione.tavolo && (
-                            <span className="text-xs text-[#78716c]">
-                              <span className="text-[#a8a29e]">Tavolo:</span> {c.dati_prenotazione.tavolo}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Messaggi */}
-                    <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
-                      {c.messages.length === 0 ? (
-                        <p className="text-sm text-[#d6cfc7] text-center py-4">
-                          Transcript non disponibile — attivo solo per le nuove conversazioni
-                        </p>
-                      ) : (
-                        c.messages.map((m, i) => (
-                          <div key={i} className={"flex " + (m.role === "user" ? "justify-start" : "justify-end")}>
-                            <div className={"max-w-[75%] " + (m.role === "user" ? "" : "")}>
-                              <div className={"px-3 py-2 rounded-2xl text-sm " + (
-                                m.role === "user"
-                                  ? "bg-[#f5f0eb] text-[#1c1917] rounded-tl-sm"
-                                  : "bg-[#c2410c] text-white rounded-tr-sm"
-                              )}>
-                                {m.message}
-                              </div>
-                              <p className={"text-xs text-[#d6cfc7] mt-0.5 " + (m.role === "user" ? "text-left" : "text-right")}>
-                                {formatTime(m.created_at)}
-                              </p>
+                  <div className="border-t border-[#e8e0d8] p-4 space-y-3 max-h-96 overflow-y-auto">
+                    {c.messages.length === 0 ? (
+                      <p className="text-sm text-[#d6cfc7] text-center py-4">
+                        Transcript non disponibile — attivo solo per le nuove conversazioni
+                      </p>
+                    ) : (
+                      c.messages.map((m, i) => (
+                        <div key={i} className={"flex " + (m.role === "user" ? "justify-start" : "justify-end")}>
+                          <div className="max-w-[75%]">
+                            <div className={"px-3 py-2 rounded-2xl text-sm " + (
+                              m.role === "user"
+                                ? "bg-[#f5f0eb] text-[#1c1917] rounded-tl-sm"
+                                : "bg-[#c2410c] text-white rounded-tr-sm"
+                            )}>
+                              {m.message}
                             </div>
+                            <p className={"text-xs text-[#d6cfc7] mt-0.5 " + (m.role === "user" ? "text-left" : "text-right")}>
+                              {formatTime(m.created_at)}
+                            </p>
                           </div>
-                        ))
-                      )}
-                    </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
