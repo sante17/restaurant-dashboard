@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 import { useEffect, useState } from "react";
+import type { JSX } from "react";
 
 const IconDashboard = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>);
 const IconCalendar = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>);
@@ -24,20 +25,22 @@ const IconLogout = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="
 const IconMenu = () => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>);
 const IconClose = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>);
 
-const baseMenuItems = [
+type MenuItem = { href: string; label: string; Icon: () => JSX.Element; hidden?: boolean };
+
+const baseMenuItems: MenuItem[] = [
   { href: "/dashboard", label: "Panoramica", Icon: IconDashboard },
   { href: "/dashboard/prenotazioni", label: "Prenotazioni", Icon: IconCalendar },
   { href: "/dashboard/chiamate", label: "Chiamate", Icon: IconPhone },
   { href: "/dashboard/whatsapp", label: "WhatsApp", Icon: IconWhatsApp, hidden: true },
   { href: "/dashboard/analitiche", label: "Analitiche", Icon: IconChart },
-  { href: "/dashboard/clienti", label: "Clienti", Icon: IconUsers, },
+  { href: "/dashboard/clienti", label: "Clienti", Icon: IconUsers },
   { href: "/dashboard/menu", label: "Menu", Icon: IconGrid },
   { href: "/dashboard/orari", label: "Orari", Icon: IconClock },
   { href: "/dashboard/tavoli", label: "Tavoli", Icon: IconTable },
   { href: "/dashboard/impostazioni", label: "Impostazioni", Icon: IconSettings },
 ];
 
-const adminMenuItem = { href: "/dashboard/admin", label: "Admin", Icon: IconAdmin };
+const adminMenuItem: MenuItem = { href: "/dashboard/admin", label: "Admin", Icon: IconAdmin };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
