@@ -28,9 +28,9 @@ const baseMenuItems = [
   { href: "/dashboard", label: "Panoramica", Icon: IconDashboard },
   { href: "/dashboard/prenotazioni", label: "Prenotazioni", Icon: IconCalendar },
   { href: "/dashboard/chiamate", label: "Chiamate", Icon: IconPhone },
-  { href: "/dashboard/whatsapp", label: "WhatsApp", Icon: IconWhatsApp },
+  { href: "/dashboard/whatsapp", label: "WhatsApp", Icon: IconWhatsApp, hidden: true },
   { href: "/dashboard/analitiche", label: "Analitiche", Icon: IconChart },
-  { href: "/dashboard/clienti", label: "Clienti", Icon: IconUsers },
+  { href: "/dashboard/clienti", label: "Clienti", Icon: IconUsers, },
   { href: "/dashboard/menu", label: "Menu", Icon: IconGrid },
   { href: "/dashboard/orari", label: "Orari", Icon: IconClock },
   { href: "/dashboard/tavoli", label: "Tavoli", Icon: IconTable },
@@ -63,7 +63,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
-  const menuItems = isAdmin ? [...baseMenuItems, adminMenuItem] : baseMenuItems;
+  const menuItems = (isAdmin ? [...baseMenuItems, adminMenuItem] : baseMenuItems).filter(item => !item.hidden);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
